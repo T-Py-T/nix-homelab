@@ -50,8 +50,6 @@ in
     ./motd
   ];
 
-  _module.args.homelabLib = homelabLib;
-
   options.homelab = {
     enable = lib.mkEnableOption "the homelab services and shared configuration";
 
@@ -95,18 +93,24 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
-    time.timeZone = cfg.timeZone;
+  config = lib.mkMerge [
+    # Always expose the homelab lib to submodules (service option declarations
+    # reference `homelabLib`, so it must exist even when the host is disabled).
+    { _module.args.homelabLib = homelabLib; }
 
-    users = {
-      groups.${cfg.group} = {
-        gid = lib.mkDefault 993;
+    (lib.mkIf cfg.enable {
+      time.timeZone = cfg.timeZone;
+
+      users = {
+        groups.${cfg.group} = {
+          gid = lib.mkDefault 993;
+        };
+        users.${cfg.user} = {
+          uid = lib.mkDefault 994;
+          isSystemUser = true;
+          group = cfg.group;
+        };
       };
-      users.${cfg.user} = {
-        uid = lib.mkDefault 994;
-        isSystemUser = true;
-        group = cfg.group;
-      };
-    };
-  };
+    })
+  ];
 }
