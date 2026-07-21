@@ -2,7 +2,6 @@
   config,
   options,
   lib,
-  pkgs,
   homelabLib,
   ...
 }:
@@ -165,7 +164,8 @@ in
     virtualisation.oci-containers.backend = "podman";
 
     networking.firewall.interfaces.podman0.allowedUDPPorts =
-      lib.lists.optionals config.virtualisation.podman.enable [ 53 ];
+      lib.lists.optionals config.virtualisation.podman.enable
+        [ 53 ];
   };
 
   imports = [

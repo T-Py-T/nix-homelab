@@ -30,7 +30,10 @@ let
     category:
     lib.attrsets.filterAttrs (
       _name: value:
-      lib.isAttrs value && (value.enable or false) && value ? homepage && value.homepage.category == category
+      lib.isAttrs value
+      && (value.enable or false)
+      && value ? homepage
+      && value.homepage.category == category
     ) hl;
 in
 {

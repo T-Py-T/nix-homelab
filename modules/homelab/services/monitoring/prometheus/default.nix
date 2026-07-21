@@ -68,15 +68,17 @@ in
     };
 
     # Auto-register Prometheus as a Grafana datasource when Grafana is present.
-    services.grafana.provision.datasources.settings.datasources = lib.mkIf config.services.grafana.enable [
-      {
-        name = "Prometheus";
-        type = "prometheus";
-        url = prometheusUrl;
-        isDefault = true;
-        editable = false;
-      }
-    ];
+    services.grafana.provision.datasources.settings.datasources =
+      lib.mkIf config.services.grafana.enable
+        [
+          {
+            name = "Prometheus";
+            type = "prometheus";
+            url = prometheusUrl;
+            isDefault = true;
+            editable = false;
+          }
+        ];
 
     services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
       ${homelab.mkCaddyTls}
