@@ -1,0 +1,95 @@
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+# ============================================================================
+# slskd beets integration
+#
+# Provides the default `beetsConfigFile` for the slskd auto-import script and a
+# `beet-wrapped` helper on PATH that runs beets as the homelab user against the
+# music library.
+# ============================================================================
+let
+  service = "slskd";
+  hl = config.homelab;
+  cfg = hl.services.${service};
+  settingsFormat = pkgs.formats.yaml { };
+  beet-wrapped = pkgs.writeScriptBin "beet-wrapped" ''
+    sudo -u ${hl.user} BEETSDIR=${cfg.musicDir}/.beets ${lib.getExe pkgs.beets} -c ${cfg.beetsConfigFile} "$@"
+  '';
+  beetsConfig = {
+    directory = cfg.musicDir;
+    library = "${cfg.musicDir}/beets.db";
+
+    plugins = [ "duplicates" ];
+
+    terminal_encoding = "utf-8";
+    threaded = true;
+
+    ui.color = true;
+
+    import = {
+      write = true;
+      copy = true;
+      move = false;
+      autotag = true;
+      duplicate_action = "merge";
+      bell = true;
+      log = "/dev/null";
+      quiet = true;
+      quiet_fallback = "asis";
+    };
+
+    original_date = true;
+    per_disc_numbering = true;
+
+    embedart.auto = true;
+
+    paths = {
+      default = "$albumartist/($year) $album/$track $title";
+      singleton = "$albumartist/($year) $album/$track $title";
+      comp = "Compilations/$album/$track $title";
+    };
+
+    aunique = {
+      keys = [
+        "albumartist"
+        "album"
+      ];
+      disambiguators = [
+        "albumtype"
+        "year"
+        "label"
+        "catalognum"
+        "albumdisambig"
+        "releasegroupdisambig"
+      ];
+      bracket = "[]";
+    };
+
+    fetchart = {
+      auto = true;
+      sources = [
+        "filesystem"
+        "coverart"
+        "itunes"
+        "amazon"
+        "albumart"
+        "fanarttv"
+      ];
+    };
+
+    lastgenre = {
+      auto = true;
+      source = "album";
+    };
+  };
+in
+{
+  config = lib.mkIf cfg.enable {
+    homelab.services.slskd.beetsConfigFile = settingsFormat.generate "beets.yaml" beetsConfig;
+    environment.systemPackages = [ beet-wrapped ];
+  };
+}

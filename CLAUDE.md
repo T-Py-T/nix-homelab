@@ -1,77 +1,83 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Architecture Overview
 
-This is a NixOS fleet management repository using Colmena for deploying and managing multiple servers. The architecture follows a modular design:
+A NixOS homelab built with **flake-parts** and deployed with **nixos-rebuild**.
+Modelled on [notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
 
-### Core Components
+### Core components
+- **machines/** holds hosts and their layered config; **modules/** holds only service/software definitions.
+- **flake.nix**: inputs (`nixpkgs`, `flake-parts`, `treefmt-nix`) and the flake-parts entrypoint.
+- **machines/nixos/default.nix**: auto-discovers each `<host>/configuration.nix`
+  and produces `flake.nixosConfigurations.<host>`. No flake edit is needed to add a host.
+- **machines/nixos/_common/**: baseline shared by all hosts (users, SSH, nix settings).
+- **modules/homelab/**: the `homelab.*` option namespace and shared infrastructure.
+- **modules/homelab/services/**: one module per service, each under `homelab.services.<name>`.
 
-- **flake.nix**: Main entry point defining inputs, development shell, and Colmena hive configuration
-- **hosts.nix**: Single source of truth for all host definitions (IPs, users, tags, descriptions)
-- **hosts/**: Individual host configurations importing from common.nix and modules
-- **modules/**: Reusable NixOS modules organized by functionality
+### The homelab namespace
+- `homelab.enable`, `homelab.baseDomain`, `homelab.timeZone`, `homelab.user/group`, `homelab.mounts.*`
+- `homelab.services.enable`: master switch that turns on Caddy + podman.
+- `homelab.services.enabledTiers`: list of importance tiers (`high`/`medium`/`low`)
+  to enable on a host. Every service whose `importance` is in the list turns on
+  automatically (via `mkDefault`), so an explicit `<name>.enable` still wins.
+- `homelab.services.<name>.enable`: per-service override.
+- `homelab.services.<name>.importance`: the service's tier, declared with
+  `homelabLib.mkImportance "<tier>"` (injected via `_module.args`).
+- `homelab.reverseProxy.acme.*`: opt-in Let's Encrypt via Cloudflare DNS. Off by
+  default -> Caddy uses `tls internal` (LAN-friendly).
+- `homelab.mkCaddyTls`: read-only helper string that services inject into their
+  Caddy `extraConfig` to apply the correct TLS directive.
 
-### Module Structure
-
-The fleet uses a custom module system under the `fleet.*` namespace:
-- `fleet.monitoring.*`: Prometheus, Grafana, Node Exporter
-- `fleet.dev.*`: Jenkins, Gitea
-- `fleet.networking.*`: Reverse proxy with TLS
-- `fleet.security.*`: Self-signed CA management
-
-### Host Architecture
-
-All hosts share common configuration via `hosts/common.nix` which includes SSH keys, user management, basic security, and Node Exporter. Individual hosts import specific modules based on their role.
+### Service module pattern
+```nix
+let service = "<name>"; cfg = config.homelab.services.${service}; homelab = config.homelab; in
+{
+  options.homelab.services.${service} = {
+    enable = lib.mkEnableOption "Enable ${service}";
+    importance = homelabLib.mkImportance "medium";   # high | medium | low
+    url = lib.mkOption { type = lib.types.str; default = "<name>.${homelab.baseDomain}"; };
+    homepage.{name,description,icon,category} = ...;   # dashboard metadata
+  };
+  config = lib.mkIf cfg.enable {
+    services.<name>.enable = true;
+    services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
+      ${homelab.mkCaddyTls}
+      reverse_proxy http://127.0.0.1:<port>
+    '';
+  };
+}
+```
 
 ## Development Commands
 
-### Environment Setup
 ```bash
-# Enter development shell with Colmena tools
-nix develop
+nix develop            # dev shell (just, nixos-rebuild)
+just check             # nix flake check - evaluate all hosts
+just fmt               # treefmt: nixfmt + deadnix + shellcheck
+just build <host>      # build a host closure locally
+just dry-run <host>    # dry-activate on the target host
+just deploy <host>     # build on target + switch
 ```
 
-### Fleet Management
-```bash
-# Build all hosts
-colmena build
+## Adding things
 
-# Deploy to all hosts
-colmena apply
+### A new host
+1. Copy an existing dir under `machines/nixos/` (e.g. `alison`).
+2. Replace `hardware-configuration.nix` with `nixos-generate-config` output.
+3. Edit `<host>/homelab.nix` for `baseDomain` and enabled services.
+It is picked up automatically - no flake edit.
 
-# Deploy to specific host
-colmena apply --on hostname
+### A new service
+1. Create `modules/homelab/services/<name>/default.nix` using the pattern above.
+2. Add it to the `imports` list in `modules/homelab/services/default.nix`.
+3. Enable it from a host's `homelab.nix`.
 
-# Deploy to hosts with specific tag
-colmena apply --on @tag-name
-
-# Execute command on host
-colmena exec --on hostname -- command
-
-# Execute command on all hosts
-colmena exec -- command
+## Notes
+- Prefer real upstream NixOS `services.*` modules; wrap them in the `homelab.services.<name>` namespace.
+- Container-based services use podman (`virtualisation.oci-containers.backend = "podman"`).
+- Secrets are currently inline build-time placeholders (Miniflux admin creds,
+  Grafana `secretKeyFile`). Override these before exposing services; migrating to
+  agenix is the intended follow-up.
 ```
-
-### Module Development
-
-When adding new modules:
-1. Create under `modules/` following the existing structure
-2. Use the `fleet.*` namespace for options
-3. Follow the pattern: options definition, implementation with `mkIf cfg.enable`
-4. Import in relevant host configurations
-
-### Host Management
-
-To add a new host:
-1. Add entry to `hosts.nix` with IP, user, tags, description
-2. Create `hosts/hostname/` directory with `configuration.nix` and `hardware-configuration.nix`
-3. Add to `colmenaHive` in `flake.nix`
-
-## Key Files
-
-- `flake.nix:19`: Host definitions imported from hosts.nix
-- `flake.nix:45-96`: Colmena hive configuration with deployment settings
-- `hosts/common.nix:81`: Fleet monitoring enablement
-- `modules/monitoring/prometheus.nix:32-36`: Node exporter targets configuration
