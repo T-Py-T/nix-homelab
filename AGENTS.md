@@ -1,32 +1,51 @@
 # Repository Guidelines
 
-Fleet is managed as a Nix flake and deployed with Colmena, so changes should always keep host reproducibility front of mind. Use this guide to stay consistent with the existing configuration style.
+This homelab is a NixOS flake built with flake-parts and deployed with
+`nixos-rebuild`. Keep host reproducibility and the modular service pattern
+front of mind.
 
 ## Project Structure & Module Organization
-- `flake.nix` wires external inputs and exposes the Colmena hive plus the development shell.
-- `hosts.nix` is the single inventory; per-host configs live in `hosts/<name>/` alongside hardware profiles and shared logic in `hosts/common.nix`.
-- Service modules are grouped under `modules/<domain>/` and exposed via the `fleet.<domain>.<service>` option namespace (e.g. `modules/dev/gitea.nix`).
-- Keep assets such as TLS material inside the relevant module options (`fleet.security.*`) rather than committing secrets.
+- Top-level `machines/` holds the hosts (machines) and their layered config; `modules/` holds only service/software definitions. Never put host definitions under `modules/`.
+- `flake.nix` wires inputs and imports the flake-parts modules.
+- `machines/nixos/default.nix` auto-discovers every `<host>/configuration.nix`
+  and exposes it as `flake.nixosConfigurations.<host>`. Adding a host needs no flake edit.
+- `machines/nixos/_common/` holds config shared by all hosts (users, SSH, nix daemon).
+- Per-host config lives in `machines/nixos/<host>/`: `configuration.nix`
+  (hardware/boot), `hardware-configuration.nix`, and `homelab.nix` (service selection).
+- Services live in `modules/homelab/services/<name>/default.nix`, exposed under the
+  `homelab.services.<name>` option namespace, and imported from
+  `modules/homelab/services/default.nix`.
+- Each service declares an importance tier with `homelabLib.mkImportance "<tier>"`
+  (`high`/`medium`/`low`). Hosts enable services in bulk via
+  `homelab.services.enabledTiers`; explicit `<name>.enable` overrides the tier.
+- Shared homelab settings and the reverse proxy live in `modules/homelab/default.nix`
+  and `modules/homelab/services/default.nix`.
 
 ## Build, Test, and Development Commands
-- `nix develop` brings up the shell with Colmena installed; run it before modifying modules.
-- `nix flake check` ensures all modules evaluate and option contracts stay valid.
-- `colmena apply --on alpha --dry-run switch` validates the `alpha` host without touching state; drop `--dry-run` to deploy.
-- `colmena apply --on bravo switch` publishes Git services; prefer tagging multiple hosts via the `hosts.nix` tags when coordinating changes.
+- `nix develop` (or direnv) enters the dev shell with `just` and `nixos-rebuild`.
+- `just check` / `nix flake check` evaluates every host and the formatter config.
+- `just build <host>` builds a host closure locally without deploying.
+- `just dry-run <host>` dry-activates on the target; `just deploy <host>` switches.
+- `just fmt` / `nix fmt` runs treefmt (nixfmt-rfc-style, deadnix, shellcheck).
 
 ## Coding Style & Naming Conventions
-- Use two-space indentation and keep attribute sets alphabetised where practical.
-- Follow the existing section banners (`# ===`) and organise modules as `options` then `config`.
-- Name options `fleet.<domain>.<service>` and expose user-tunable settings through `mkOption` with informative defaults.
-- Prefer descriptive attribute keys (`domain`, `port`, `description`) and consistent casing for hostnames and routes.
+- Two-space indentation; format with `nix fmt` before committing.
+- Each service module starts with `let service = "<name>"; cfg = config.homelab.services.${service}; in`.
+- Service modules take `homelabLib` as a module arg and declare
+  `importance = homelabLib.mkImportance "<tier>";` alongside `enable`.
+- Expose user-tunable settings via `lib.mkOption` with sensible defaults.
+- Every user-facing service should define `homepage.{name,description,icon,category}`
+  so it appears on the Homepage dashboard.
+- Reverse-proxied services register `services.caddy.virtualHosts.<url>` and inject
+  `${config.homelab.mkCaddyTls}` as the first line of `extraConfig`.
+- Section banners use `# ===`/`# ---`; keep `options` above `config`.
 
 ## Testing Guidelines
-- Extend or adjust modules under `modules/` and rerun `nix flake check` before review.
-- For behavioural changes, exercise `colmena apply --on <host> --dry-run switch` to confirm activations succeed.
-- Capture any manual verification (e.g. Grafana reachable on port 3000) in the pull request notes so reviewers can mirror the checks.
+- Run `just check` before every review; it must evaluate cleanly for all hosts.
+- For behavioural changes, run `just dry-run <host>` and note the result in the PR.
+- New services: confirm the Caddy vhost and (if applicable) the Homepage entry appear.
 
 ## Commit & Pull Request Guidelines
-- Match the existing history of short, lower-case imperative summaries (e.g. `adding reverse proxy`).
-- Each PR should explain the motivation, list affected hosts or services, and call out required secrets or DNS updates.
-- Include screenshots or command transcripts when modifying user-facing dashboards or endpoints.
-- Reference related issues or host tags for traceability, and ensure CI/CD or deployment checks are linked before requesting review.
+- Short, lower-case imperative commit summaries (e.g. `add vaultwarden service`).
+- PRs should explain motivation, list affected hosts/services, and call out any
+  required secrets, DNS, or `/etc/hosts` entries.
