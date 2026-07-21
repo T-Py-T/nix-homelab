@@ -164,7 +164,9 @@ in
         serviceConfig = {
           User = config.services.slskd.user;
           Group = config.services.slskd.group;
-          ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd --exit-idle-time=5min 127.0.0.1:${toString config.services.${service}.settings.web.port}";
+          ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd --exit-idle-time=5min 127.0.0.1:${
+            toString config.services.${service}.settings.web.port
+          }";
           PrivateNetwork = "yes";
         };
       };

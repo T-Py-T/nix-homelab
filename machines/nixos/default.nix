@@ -14,9 +14,7 @@
 # ============================================================================
 let
   entries = builtins.attrNames (builtins.readDir ./.);
-  configs = builtins.filter (
-    dir: builtins.pathExists (./. + "/${dir}/configuration.nix")
-  ) entries;
+  configs = builtins.filter (dir: builtins.pathExists (./. + "/${dir}/configuration.nix")) entries;
 
   # Per-host CPU architecture. Anything not listed here defaults to x86_64.
   systemArchMap = {
