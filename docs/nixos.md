@@ -4,8 +4,6 @@ The homelab hosts run NixOS. Each machine is a flake output, and services are
 chosen per host by importance tier. This guide covers installing a box,
 deploying changes, extending the fleet, and the day-to-day options.
 
-Deploying from a macOS workstation has extra caveats - see [macos.md](./macos.md).
-
 ## Service selection (importance tiers)
 
 Each service declares an importance tier in its module
