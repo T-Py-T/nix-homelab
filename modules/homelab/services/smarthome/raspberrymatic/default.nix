@@ -2,7 +2,6 @@
   lib,
   config,
   pkgs,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -20,8 +19,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable RaspberryMatic";
-
-    importance = homelabLib.mkImportance "low";
 
     configDir = lib.mkOption {
       type = lib.types.str;

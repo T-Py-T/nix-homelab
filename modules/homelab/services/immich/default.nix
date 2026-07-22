@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -19,8 +18,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Self-hosted photo and video management solution";
-
-    importance = homelabLib.mkImportance "high";
 
     mediaDir = lib.mkOption {
       type = lib.types.path;

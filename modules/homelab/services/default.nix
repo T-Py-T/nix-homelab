@@ -2,7 +2,6 @@
   config,
   options,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -10,48 +9,119 @@
 #
 # Everything common to the individual services lives here:
 #   * the `homelab.services.enable` master switch
-#   * `homelab.services.enabledTiers`: turn services on by importance tier
+#   * `homelab.services.profiles` + `enabledProfiles`: turn services on in named
+#     bundles (a host picks the profiles it should run)
 #   * the reverse proxy (Caddy) and its TLS strategy
-#   * a `homelab.mkCaddyExtraConfig` helper so each service applies the right
-#     TLS directive without repeating the ACME-vs-internal logic
+#   * a `homelab.mkCaddyTls` helper so each service applies the right TLS
+#     directive without repeating the ACME-vs-internal logic
 #   * the container runtime (Podman) used by container-based services
 #
 # Individual services are imported at the bottom of this file and each define
-# their own `homelab.services.<name>` options (including an `importance` tier).
+# their own `homelab.services.<name>` options.
 # ============================================================================
 let
   cfg = config.homelab;
   proxy = cfg.reverseProxy;
 
   # Every declared service module under `homelab.services.<name>`: an option
-  # sub-tree that exposes both `enable` and `importance`. Derived from the
-  # *option declarations* (not config values) so new service modules are picked
-  # up automatically and there is no dependency cycle with the `enable`s we set
-  # below.
+  # sub-tree that exposes `enable`. Derived from the *option declarations* (not
+  # config values) so new service modules are picked up automatically and there
+  # is no dependency cycle with the `enable`s we set below.
   serviceOpts = options.homelab.services;
   serviceNames = builtins.filter (
     name:
     let
       opt = serviceOpts.${name};
     in
-    lib.isAttrs opt && !(opt ? _type) && opt ? enable && opt ? importance
+    lib.isAttrs opt && !(opt ? _type) && opt ? enable
   ) (builtins.attrNames serviceOpts);
+
+  # Services requested by the host's enabled profiles.
+  enabledServices = lib.unique (
+    lib.concatMap (p: cfg.services.profiles.${p} or [ ]) cfg.services.enabledProfiles
+  );
+  unknownProfiles = builtins.filter (p: !(cfg.services.profiles ? ${p})) cfg.services.enabledProfiles;
+  unknownServices = builtins.filter (s: !(builtins.elem s serviceNames)) enabledServices;
+  validEnabled = builtins.filter (s: builtins.elem s serviceNames) enabledServices;
 in
 {
   options.homelab = {
     services.enable = lib.mkEnableOption "the homelab services and reverse proxy";
 
-    services.enabledTiers = lib.mkOption {
-      type = lib.types.listOf (lib.types.enum homelabLib.tiers);
+    services.profiles = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.listOf lib.types.str);
+      description = ''
+        Named service bundles. A host enables whole profiles via
+        `enabledProfiles`; every service listed in an enabled profile turns on
+        (an explicit `<service>.enable` on the host always overrides this).
+        Override or extend this attrset to add your own profiles.
+      '';
+      default = {
+        # Monitoring + the dashboard: the baseline most hosts want.
+        core = [
+          "node-exporter"
+          "prometheus"
+          "grafana"
+          "uptime-kuma"
+          "homepage"
+        ];
+        # Model serving - shared by GPU/AI hosts (see homelab.gpu).
+        ai = [
+          "ollama"
+          "open-webui"
+        ];
+        media = [
+          "jellyfin"
+          "audiobookshelf"
+          "navidrome"
+          "immich"
+        ];
+        arr = [
+          "prowlarr"
+          "sonarr"
+          "radarr"
+          "bazarr"
+          "lidarr"
+          "jellyseerr"
+        ];
+        downloads = [
+          "deluge"
+          "sabnzbd"
+          "slskd"
+        ];
+        productivity = [
+          "nextcloud"
+          "paperless"
+          "radicale"
+          "vaultwarden"
+          "miniflux"
+          "microbin"
+        ];
+        git = [
+          "forgejo"
+          "forgejo-runner"
+        ];
+        comms = [ "matrix" ];
+        analytics = [ "plausible" ];
+        smarthome = [
+          "homeassistant"
+          "raspberrymatic"
+        ];
+        net = [ "wireguard-netns" ];
+      };
+    };
+
+    services.enabledProfiles = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
       default = [ ];
       example = [
-        "high"
-        "medium"
+        "core"
+        "ai"
       ];
       description = ''
-        Importance tiers to enable on this host. Every service whose
-        `importance` is in this list turns on automatically. Setting a
-        service's `enable` explicitly on the host always overrides this.
+        Profiles to enable on this host. Every service in these profiles turns
+        on automatically. Setting a service's `enable` explicitly on the host
+        always overrides this.
       '';
     };
 
@@ -98,21 +168,26 @@ in
 
   config = lib.mkIf cfg.services.enable {
     # ------------------------------------------------------------------------
-    # TIER-BASED AUTO-ENABLE
+    # PROFILE-BASED AUTO-ENABLE
     #
-    # For every discovered service, default its `enable` to whether its tier is
-    # in `enabledTiers`. `mkDefault` (priority 1000) means an explicit
+    # For every service requested by the host's enabled profiles, default its
+    # `enable` to true. `mkDefault` (priority 1000) means an explicit
     # `<service>.enable = true/false` on the host (priority 100) still wins.
     # ------------------------------------------------------------------------
-    homelab.services = lib.genAttrs serviceNames (
-      name:
-      let
-        svc = config.homelab.services.${name};
-      in
+    assertions = [
       {
-        enable = lib.mkDefault (lib.elem svc.importance cfg.services.enabledTiers);
+        assertion = unknownProfiles == [ ];
+        message = "homelab.services.enabledProfiles references unknown profile(s): ${toString unknownProfiles}. Known profiles: ${toString (builtins.attrNames cfg.services.profiles)}.";
       }
-    );
+      {
+        assertion = unknownServices == [ ];
+        message = "homelab.services.profiles reference unknown service(s): ${toString unknownServices}. These have no matching homelab.services.<name> module.";
+      }
+    ];
+
+    homelab.services = lib.genAttrs validEnabled (_name: {
+      enable = lib.mkDefault true;
+    });
 
     # ------------------------------------------------------------------------
     # FIREWALL - open HTTP/HTTPS for the reverse proxy
@@ -173,6 +248,10 @@ in
     ./node-exporter
     ./monitoring/prometheus
     ./monitoring/grafana
+
+    # AI / model serving
+    ./ollama
+    ./open-webui
 
     # Arr stack
     ./arr/prowlarr

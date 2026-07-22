@@ -5,48 +5,15 @@
 # Defines the top-level `homelab.*` option namespace and the settings shared
 # by every service (the service user/group, base domain, timezone, storage
 # mount points). Individual services live under ./services and hang their own
-# options off `homelab.services.<name>`.
+# options off `homelab.services.<name>`; GPU support lives under ./gpu.
 # ============================================================================
 let
   cfg = config.homelab;
-
-  # --------------------------------------------------------------------------
-  # IMPORTANCE TIERS
-  #
-  # Every service declares an `importance` tier. A host then opts a set of
-  # tiers in via `homelab.services.enabledTiers`, and every service in those
-  # tiers turns on automatically (an explicit `<service>.enable` on the host
-  # still wins). This is what lets us run everything on one box today and, as
-  # more machines come online, split the fleet by criticality / load simply by
-  # handing different tiers to different hosts.
-  # --------------------------------------------------------------------------
-  tiers = [
-    "high"
-    "medium"
-    "low"
-  ];
-
-  # Injected into every homelab submodule via `_module.args` so service
-  # modules can call `homelabLib.mkImportance "high"` without an import.
-  homelabLib = {
-    inherit tiers;
-
-    mkImportance =
-      default:
-      lib.mkOption {
-        type = lib.types.enum tiers;
-        inherit default;
-        description = ''
-          Criticality tier for this service. A host enables whole tiers via
-          `homelab.services.enabledTiers`; every service in an enabled tier is
-          switched on unless its `enable` is set explicitly on the host.
-        '';
-      };
-  };
 in
 {
   imports = [
     ./services
+    ./gpu
     ./motd
   ];
 
@@ -93,24 +60,18 @@ in
     };
   };
 
-  config = lib.mkMerge [
-    # Always expose the homelab lib to submodules (service option declarations
-    # reference `homelabLib`, so it must exist even when the host is disabled).
-    { _module.args.homelabLib = homelabLib; }
+  config = lib.mkIf cfg.enable {
+    time.timeZone = cfg.timeZone;
 
-    (lib.mkIf cfg.enable {
-      time.timeZone = cfg.timeZone;
-
-      users = {
-        groups.${cfg.group} = {
-          gid = lib.mkDefault 993;
-        };
-        users.${cfg.user} = {
-          uid = lib.mkDefault 994;
-          isSystemUser = true;
-          group = cfg.group;
-        };
+    users = {
+      groups.${cfg.group} = {
+        gid = lib.mkDefault 993;
       };
-    })
-  ];
+      users.${cfg.user} = {
+        uid = lib.mkDefault 994;
+        isSystemUser = true;
+        group = cfg.group;
+      };
+    };
+  };
 }

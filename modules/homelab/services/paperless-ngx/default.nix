@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -21,8 +20,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable ${service}";
-
-    importance = homelabLib.mkImportance "high";
 
     mediaDir = lib.mkOption {
       type = lib.types.str;

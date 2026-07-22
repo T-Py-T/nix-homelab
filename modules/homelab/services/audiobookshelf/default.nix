@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -18,8 +17,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable ${service}";
-
-    importance = homelabLib.mkImportance "medium";
 
     url = lib.mkOption {
       type = lib.types.str;
