@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -22,8 +21,6 @@ in
 {
   options.homelab.services.deluge = {
     enable = lib.mkEnableOption "Deluge torrent client (optionally bound to a Wireguard VPN namespace)";
-
-    importance = homelabLib.mkImportance "low";
 
     url = lib.mkOption {
       type = lib.types.str;

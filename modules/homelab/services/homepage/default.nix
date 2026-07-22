@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -20,6 +19,7 @@ let
   # Categories rendered on the dashboard, in display order.
   categories = [
     "Observability"
+    "AI"
     "Media"
     "Downloads"
     "Services"
@@ -39,8 +39,6 @@ in
 {
   options.homelab.services.homepage = {
     enable = lib.mkEnableOption "Enable ${service}";
-
-    importance = homelabLib.mkImportance "high";
 
     listenPort = lib.mkOption {
       type = lib.types.port;

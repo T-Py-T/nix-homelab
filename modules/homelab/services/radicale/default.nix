@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -23,8 +22,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Free and Open-Source CalDAV and CardDAV Server";
-
-    importance = homelabLib.mkImportance "high";
 
     url = lib.mkOption {
       type = lib.types.str;
