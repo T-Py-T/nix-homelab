@@ -4,6 +4,13 @@ A modular NixOS homelab. Each machine is a flake output and every service is a
 self-contained module, selected per host by importance tier. Modelled on
 [notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
 
+Deploying a new host or updating an existing one is a single command from the
+dev shell - it builds the config on the target and switches:
+
+```sh
+just deploy <host>
+```
+
 ## Layout
 
 ```
@@ -18,5 +25,4 @@ modules/homelab/                   # the homelab.* namespace, tiers, reverse pro
 
 ## Documentation
 
-- [docs/nixos.md](docs/nixos.md) - set up a host, deploy, add services, tiers, TLS, and secrets.
-- [docs/macos.md](docs/macos.md) - deploying from a macOS (Darwin) workstation.
+- [docs/nixos.md](docs/nixos.md) - install a host, deploy and update, add services, tiers, TLS, and secrets.
