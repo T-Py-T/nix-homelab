@@ -42,7 +42,6 @@ let
   );
   unknownProfiles = builtins.filter (p: !(cfg.services.profiles ? ${p})) cfg.services.enabledProfiles;
   unknownServices = builtins.filter (s: !(builtins.elem s serviceNames)) enabledServices;
-  validEnabled = builtins.filter (s: builtins.elem s serviceNames) enabledServices;
 in
 {
   options.homelab = {
@@ -185,8 +184,11 @@ in
       }
     ];
 
-    homelab.services = lib.genAttrs validEnabled (_name: {
-      enable = lib.mkDefault true;
+    # Keys come from the (static) option declarations; profile membership is
+    # computed lazily in the value, so the key set never depends on the
+    # `enabledProfiles` we read here (avoids an infinite recursion).
+    homelab.services = lib.genAttrs serviceNames (name: {
+      enable = lib.mkDefault (builtins.elem name enabledServices);
     });
 
     # ------------------------------------------------------------------------
