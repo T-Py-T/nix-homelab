@@ -1,11 +1,10 @@
 # nix-homelab
 
-A modular, extensible NixOS homelab. Each machine is a flake output built with
-[flake-parts](https://flake.parts), and every service is a self-contained
-module under the `homelab.*` option namespace. Services are grouped into
-**importance tiers**, so a host turns on whole classes of services at once
-(and can still override any single one). Adding a new service is a single
-`default.nix`.
+A modular NixOS homelab. Each machine is a flake output built with
+[flake-parts](https://flake.parts); every service is a self-contained module
+under the `homelab.*` option namespace. A host picks services by **importance
+tier**, so one box can run everything today and the fleet can be split across
+machines later by changing a single list.
 
 The architecture follows [notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
 
@@ -14,32 +13,39 @@ The architecture follows [notthebee/nix-config](https://git.notthebe.ee/notthebe
 ```
 flake.nix                         # inputs + flake-parts entrypoint
 justfile                          # build / deploy recipes
-machines/                         # the hosts (machines) and their layered config
+machines/                         # the hosts and their layered config
   nixos/
     default.nix                   # auto-discovers hosts -> nixosConfigurations
     _common/                      # config shared by every host (users, ssh, nix)
     <host>/
       configuration.nix           # host hardware/boot (+ imports homelab.nix)
       hardware-configuration.nix  # from `nixos-generate-config`
-      homelab.nix                 # which services this host runs
+      homelab.nix                 # which service tiers this host runs
 modules/                          # service / software definitions only
   devshell.nix                    # `nix develop` shell + `nix fmt` (treefmt)
   homelab/
-    default.nix                   # `homelab.*` namespace + shared user/group
+    default.nix                   # `homelab.*` namespace + importance tiers
     motd/                         # login banner with live service status
     services/
-      default.nix                 # reverse proxy (Caddy), podman, service imports
+      default.nix                 # reverse proxy (Caddy), podman, tier engine
       <service>/default.nix       # one module per service
 ```
 
-## How it works
+Any directory under `machines/nixos/` that contains a `configuration.nix`
+automatically becomes `flake.nixosConfigurations.<dirname>`, and its hostname is
+set to the directory name. Adding a host needs no flake edit.
 
-Every directory under `machines/nixos/` that contains a
-`configuration.nix` automatically becomes an entry in
-`flake.nixosConfigurations` - no flake edits needed to add a host.
+## How service selection works
 
-Each host imports the `homelab` module, which provides the `homelab.*` options.
-A host's `homelab.nix` selects and configures services, e.g.:
+Each service declares an importance tier in its module
+(`importance = homelabLib.mkImportance "high"`). A host then enables whole tiers
+at once; every service in an enabled tier turns on automatically.
+
+- `high` - core infra, observability, critical data, the dashboard
+- `medium` - general self-hosted apps and primary media
+- `low` - the acquisition stack (arr/downloaders) and niche/infra bits
+
+A host's `homelab.nix`:
 
 ```nix
 homelab = {
@@ -47,45 +53,134 @@ homelab = {
   baseDomain = "home.lan";
   services = {
     enable = true;
-    # Turn on whole tiers at once ...
-    enabledTiers = [ "high" "medium" ];
-    # ... and still override individual services when you need to.
-    forgejo.enable = true;   # force on regardless of tier
-    slskd.enable = false;    # force off even if its tier is enabled
+    enabledTiers = [ "high" "medium" "low" ];   # everything, for a single box
+
+    # Per-service overrides always win over the tier default:
+    #   jellyfin.enable = false;                 # pull one service out
+    #   sonarr.enable = true;                    # pull one in
+    prometheus.scrapeTargets = [ /* ... */ ];    # or just pass settings
   };
 };
 ```
 
-### Importance tiers
-
-Each service declares an `importance` tier in its module:
-
-| Tier | Meaning |
-|---|---|
-| `high` | Core infrastructure, observability, critical data, the dashboard |
-| `medium` | General self-hosted apps and primary media |
-| `low` | Acquisition stack (arr/downloaders) and niche/infra bits |
-
-A host opts tiers in with `homelab.services.enabledTiers`; every service in an
-enabled tier switches on automatically. An explicit
-`homelab.services.<name>.enable` on the host always wins over the tier default,
-so you can pull a single service in or out without touching a whole tier.
-
-This is how the fleet scales: run every tier on one box today, and as more
-machines come online hand each host a different set of tiers to spread the
-load by criticality.
+To spread the fleet later, give each host a different `enabledTiers` (a small
+box gets `[ "high" ]`, a beefy one gets all three). No module changes needed.
 
 Every enabled service registers a [Caddy](https://caddyserver.com) virtual host
-at `<service>.<baseDomain>` and shows up automatically on the Homepage
-dashboard, grouped by category.
+at `<service>.<baseDomain>` and appears on the Homepage dashboard, grouped by
+category.
 
-### TLS
+## Set up the first box
+
+You need a machine that can run NixOS (bare metal or a VM) and a workstation to
+drive deploys from. NixOS is installed once by hand; every change after that is
+a one-line `just deploy`.
+
+### 1. Prepare your workstation
+
+Install Nix (the [Determinate Systems installer](https://determinate.systems)
+is recommended), then clone the repo and enter the dev shell (it provides `just`
+and `nixos-rebuild`; [direnv](https://direnv.net) loads it automatically via the
+bundled `.envrc`):
+
+```sh
+git clone https://github.com/T-Py-T/nix-homelab
+cd nix-homelab
+nix develop            # or: direnv allow
+```
+
+### 2. Point the repo at your machine
+
+The repo ships a ready example host, `alison`. Use it directly for your first
+box, or copy it to a new name (`cp -r machines/nixos/alison machines/nixos/<host>`
+- the directory name becomes the hostname). Then, in that host directory:
+
+- **`hardware-configuration.nix`** - replace the placeholder with the real thing.
+  Boot the target from the NixOS installer, partition and mount the disk at
+  `/mnt`, then run `nixos-generate-config --root /mnt` and copy the generated
+  `/mnt/etc/nixos/hardware-configuration.nix` into the host directory.
+- **`configuration.nix`** - set the bootloader for your hardware. The example
+  uses BIOS/GRUB on `/dev/vda`; for a modern UEFI machine use systemd-boot:
+
+  ```nix
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  ```
+
+- **`homelab.nix`** - set `baseDomain`, `timeZone`, and `enabledTiers`.
+
+Finally add your SSH public key so you can log in and deploy. Edit
+`machines/nixos/_common/default.nix` and replace the placeholder key on
+`users.users.admin.openssh.authorizedKeys.keys` with your own. Commit the changes.
+
+### 3. Install NixOS on the target
+
+From the NixOS installer (disk mounted at `/mnt`, config committed and pushed),
+install the whole flake config:
+
+```sh
+nixos-install --flake github:T-Py-T/nix-homelab#<host>
+```
+
+(Or clone the repo onto the installer and use `nixos-install --flake .#<host>`
+if you would rather not push a half-configured tree.) Set a root password when
+prompted, then `reboot`.
+
+### 4. Make the host reachable, then deploy updates
+
+The `admin` user has passwordless sudo and key-only SSH. Add an entry to your
+workstation's `~/.ssh/config` so the host name resolves and connects as `admin`
+with your key:
+
+```
+Host <host>
+  HostName 192.168.1.50      # the box's IP or DNS name
+  User admin
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+Confirm it evaluates, then apply every future change with a single command:
+
+```sh
+just check                  # nix flake check - evaluate all hosts
+just dry-run <host>          # preview the activation (no changes)
+just deploy <host>           # build on the target and switch
+```
+
+### 5. Reach the services
+
+With no public domain, Caddy issues its own internal TLS certificates and the
+service hostnames are not in DNS. On each client, point the names at the box
+(e.g. in `/etc/hosts`) and trust Caddy's local CA:
+
+```
+192.168.1.50  home.lan grafana.home.lan git.home.lan photos.home.lan  # ...etc
+```
+
+Then open `https://home.lan` for the Homepage dashboard. To use real Let's
+Encrypt certificates instead, see [TLS](#tls) below.
+
+## Add another box
+
+Once the first box is running, each additional machine is the same pattern with
+a different tier selection - that is how load is spread across the fleet:
+
+1. `cp -r machines/nixos/<existing> machines/nixos/<newhost>`.
+2. Replace its `hardware-configuration.nix` (`nixos-generate-config` on the new
+   machine) and set the bootloader in `configuration.nix`.
+3. If it is a different CPU architecture, add it to `systemArchMap` in
+   `machines/nixos/default.nix` (e.g. `<newhost> = "aarch64-linux";`).
+4. In its `homelab.nix`, set `enabledTiers` to just the tiers this box should run
+   (a low-power node might take only `[ "high" ]`; a NAS might take `[ "low" ]`
+   for the download stack). Your key is already in `_common`, so no key edit.
+5. Add an `~/.ssh/config` entry, then `nixos-install --flake ...#<newhost>` on
+   the target and `just deploy <newhost>` from then on.
+
+## TLS
 
 By default Caddy issues its own **internal** certificates (`tls internal`),
-which is ideal for a LAN with no public domain. Point the service hostnames at
-the host via `/etc/hosts` or local DNS and trust Caddy's local CA.
-
-To use real Let's Encrypt certificates via the Cloudflare DNS challenge:
+ideal for a LAN with no public domain. To use real Let's Encrypt certificates
+via the Cloudflare DNS-01 challenge:
 
 ```nix
 homelab.reverseProxy.acme = {
@@ -94,20 +189,6 @@ homelab.reverseProxy.acme = {
   dnsCredentialsFile = "/run/secrets/cloudflare-dns"; # CF_DNS_API_TOKEN=...
 };
 ```
-
-## Getting started
-
-Install Nix (the [Determinate Systems installer](https://determinate.systems/)
-is recommended). With [direnv](https://direnv.net) the included `.envrc` loads
-the dev shell automatically; otherwise run `nix develop`.
-
-1. Copy `machines/nixos/alison` to a new directory named after your host.
-2. Replace `hardware-configuration.nix` with the output of
-   `nixos-generate-config` on the target machine.
-3. Put your SSH public key in `machines/nixos/_common/default.nix`.
-4. Edit `<host>/homelab.nix` to set `baseDomain` and pick `services.enabledTiers`
-   (and any per-service overrides).
-5. Deploy.
 
 ## Commands
 
@@ -123,7 +204,8 @@ All recipes live in the `justfile` (run `just` to list them):
 | `just boot <host>` | Apply on next boot |
 
 `deploy`/`dry-run`/`boot` use `nixos-rebuild --target-host <host>`, so `<host>`
-must be reachable over SSH as a user with passwordless sudo.
+must be reachable over SSH as a user with passwordless sudo (see the SSH config
+entry above).
 
 ## Adding a service
 
@@ -141,8 +223,7 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable ${service}";
-    # Importance tier: high | medium | low. Hosts enable services by tier.
-    importance = homelabLib.mkImportance "medium";
+    importance = homelabLib.mkImportance "medium";   # high | medium | low
     url = lib.mkOption {
       type = lib.types.str;
       default = "myservice.${homelab.baseDomain}";
@@ -167,41 +248,14 @@ in
 Icons come from the [dashboard-icons](https://github.com/homarr-labs/dashboard-icons)
 set that Homepage bundles.
 
-## Bundled services
+## Secrets
 
-| Service | Tier | Default hostname |
-|---|---|---|
-| Forgejo | `high` | `git.<baseDomain>` |
-| Grafana | `high` | `grafana.<baseDomain>` |
-| Homepage | `high` | `<baseDomain>` |
-| Immich | `high` | `photos.<baseDomain>` |
-| Nextcloud | `high` | `cloud.<baseDomain>` |
-| Node Exporter | `high` | (scraped directly, not proxied) |
-| Paperless-ngx | `high` | `paperless.<baseDomain>` |
-| Prometheus | `high` | `prometheus.<baseDomain>` |
-| Radicale | `high` | `cal.<baseDomain>` |
-| Uptime Kuma | `high` | `uptime.<baseDomain>` |
-| Vaultwarden | `high` | `pass.<baseDomain>` |
-| Audiobookshelf | `medium` | `audiobooks.<baseDomain>` |
-| Forgejo Runner | `medium` | `cache.<baseDomain>` (attic) |
-| Home Assistant | `medium` | `home.<baseDomain>` |
-| Jellyfin | `medium` | `jellyfin.<baseDomain>` |
-| Matrix | `medium` | `chat.<baseDomain>` |
-| MicroBin | `medium` | `bin.<baseDomain>` |
-| Miniflux | `medium` | `rss.<baseDomain>` |
-| Navidrome | `medium` | `music.<baseDomain>` |
-| Plausible | `medium` | `numbers.<baseDomain>` |
-| Bazarr | `low` | `bazarr.<baseDomain>` |
-| Deluge | `low` | `deluge.<baseDomain>` |
-| Jellyseerr | `low` | `jellyseerr.<baseDomain>` |
-| Lidarr | `low` | `lidarr.<baseDomain>` |
-| Prowlarr | `low` | `prowlarr.<baseDomain>` |
-| Radarr | `low` | `radarr.<baseDomain>` |
-| RaspberryMatic | `low` | `ccu.<baseDomain>` |
-| SABnzbd | `low` | `sabnzbd.<baseDomain>` |
-| slskd | `low` | `slskd.<baseDomain>` |
-| Sonarr | `low` | `sonarr.<baseDomain>` |
-| WireGuard netns | `low` | (infra, no vhost) |
+Secrets are currently inline build-time placeholders (e.g. Miniflux admin
+credentials, Grafana's secret key) so a host evaluates and boots out of the box.
+**Change these before exposing any service.** Migrating to
+[agenix](https://github.com/ryantm/agenix) - which encrypts secrets at rest and
+decrypts them per host with each machine's SSH key - is the intended follow-up
+once a second machine exists.
 
 ## Resources
 
