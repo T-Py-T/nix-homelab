@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_host:
+        description: "Optionally build this host's full closure (e.g. alison, grace). Empty = skip."
+        required: false
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,7 +29,38 @@ jobs:
       - name: Cache Nix store
         uses: DeterminateSystems/magic-nix-cache-action@main
 
-      # Evaluates every host in flake.nixosConfigurations plus the treefmt
-      # formatter config. This is the same thing `just check` runs locally.
+      # Evaluates every host in flake.nixosConfigurations (including the aarch64
+      # GPU node `grace`) plus the treefmt formatter config. Evaluation is the
+      # gate: it proves each host is well-formed without building closures.
       - name: Flake check
         run: nix flake check --print-build-logs
+
+  # Opt-in full-closure build, triggered manually via "Run workflow" with a host
+  # name. Deliberately off the PR/push path: building the general services host
+  # is heavy, and the GPU node `grace` is aarch64 + CUDA, which a shared x86
+  # runner can only emulate (slow, and may exceed its disk/time). For real GPU
+  # builds, change `runs-on` to a self-hosted aarch64 runner.
+  build-host:
+    name: build host closure
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_host != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (aarch64 emulation for grace)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            extra-platforms = aarch64-linux
+
+      - name: Cache Nix store
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build ${{ inputs.build_host }} closure
+        run: |
+          nix build --print-build-logs \
+            ".#nixosConfigurations.${{ inputs.build_host }}.config.system.build.toplevel"

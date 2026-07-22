@@ -19,10 +19,14 @@ justfile                           # build / deploy recipes
 machines/nixos/                    # hosts; each <host>/ -> nixosConfigurations.<host>
   _common/                         # config shared by every host (users, ssh, nix)
   <host>/                          # configuration.nix, hardware-configuration.nix, homelab.nix
-modules/homelab/                   # the homelab.* namespace, tiers, reverse proxy
+machines/darwin/                   # macOS (nix-darwin) hosts
+modules/homelab/                   # the homelab.* namespace, profiles, GPU, reverse proxy
   services/<service>/default.nix   # one module per service
 ```
 
 ## Documentation
 
-- [docs/nixos.md](docs/nixos.md) - install a host, deploy and update, add services, tiers, TLS, and secrets.
+- [docs/nixos.md](docs/nixos.md) - how it works: profiles, first-host setup, TLS, commands, secrets.
+- [docs/general-homelab.md](docs/general-homelab.md) - the general services host (`alison`): what runs + deploy.
+- [docs/dgx-spark.md](docs/dgx-spark.md) - the GPU model-serving node (`grace`): what runs + deploy.
+- [docs/macos.md](docs/macos.md) - the Mac Studio AI node (`ada`) + deploying from macOS.
