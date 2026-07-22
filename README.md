@@ -1,7 +1,7 @@
 # nix-homelab
 
 A modular NixOS homelab. Each machine is a flake output and every service is a
-self-contained module, selected per host by importance tier. Modelled on
+self-contained module, selected per host by profile. Modelled on
 [notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
 
 Deploying a new host or updating an existing one is a single command from the
