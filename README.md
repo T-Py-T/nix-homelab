@@ -1,12 +1,47 @@
 # nix-homelab
 
-A modular NixOS homelab. Each machine is a flake output built with
-[flake-parts](https://flake.parts); every service is a self-contained module
-under the `homelab.*` option namespace. A host picks services by **importance
-tier**, so one box can run everything today and the fleet can be split across
-machines later by changing a single list.
+A modular NixOS homelab where each machine is a flake output and every service
+is a self-contained module. Modelled on
+[notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
 
-The architecture follows [notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
+## Overview
+
+- **Modular services** - one module per service under `homelab.services.<name>`,
+  exposed through a [Caddy](https://caddyserver.com) reverse proxy at
+  `<service>.<baseDomain>` and auto-listed on a Homepage dashboard.
+- **Importance tiers** - each service is tagged `high`, `medium`, or `low`. A
+  host enables whole tiers via `enabledTiers`, so one box runs everything today
+  and the fleet is split across machines later by load - no module changes.
+- **Reproducible hosts** - drop a directory under `machines/nixos/<host>/` and it
+  becomes `flake.nixosConfigurations.<host>` automatically; no flake edit.
+- **LAN-friendly TLS** - Caddy issues internal certificates by default; opt into
+  Let's Encrypt (Cloudflare DNS) once you have a public domain.
+- **Simple deploys** - install a box once with `nixos-install`, then push every
+  later change with `just deploy <host>`.
+
+## Getting started
+
+Quick path (your workstation already has Nix; a target machine can run NixOS):
+
+```sh
+git clone https://github.com/T-Py-T/nix-homelab
+cd nix-homelab && nix develop        # dev shell: just + nixos-rebuild
+```
+
+Point the example host `alison` at your machine, then evaluate:
+
+- swap in real hardware: `machines/nixos/alison/hardware-configuration.nix`
+- pick services: `enabledTiers` in `machines/nixos/alison/homelab.nix`
+- add your SSH key: `machines/nixos/_common/default.nix`
+
+```sh
+just check                                                 # evaluate the flake
+nixos-install --flake github:T-Py-T/nix-homelab#alison     # on the target, once
+just deploy alison                                         # every change after
+```
+
+Full walkthrough (partitioning, bootloader, SSH config, DNS/TLS) is in
+[Set up the first box](#set-up-the-first-box).
 
 ## Layout
 
@@ -66,9 +101,8 @@ homelab = {
 To spread the fleet later, give each host a different `enabledTiers` (a small
 box gets `[ "high" ]`, a beefy one gets all three). No module changes needed.
 
-Every enabled service registers a [Caddy](https://caddyserver.com) virtual host
-at `<service>.<baseDomain>` and appears on the Homepage dashboard, grouped by
-category.
+Every enabled service registers a Caddy virtual host at `<service>.<baseDomain>`
+and appears on the Homepage dashboard, grouped by category.
 
 ## Set up the first box
 
