@@ -34,9 +34,42 @@ builder so it offloads Linux builds:
 - `nix-darwin`'s `nix.linux-builder.enable`, which runs a small NixOS builder VM
   on the Mac.
 
-## A Mac as a future node
+## Mac Studio as an AI node (`ada`)
 
-Apple Silicon is strong hardware for self-hosted AI, so a Mac may make sense as a
-homelab node later. That would be a `nix-darwin` configuration under a
-`machines/darwin/` tree, selected much like the NixOS hosts are - it is
-intentionally not part of the repo yet.
+Apple Silicon is strong hardware for local AI, so the repo defines a Mac Studio
+node, `ada`, that serves models with Ollama on Metal (the macOS side of the `ai`
+role). Its config is at `machines/darwin/ada/configuration.nix` - Ollama as a
+launchd agent. Because macOS is not a NixOS host, this uses **nix-darwin**, which
+needs a flake input and a `flake.lock` update, so `ada` ships **unwired**.
+Activate it on a machine that has Nix:
+
+1. Add the input to `flake.nix`:
+
+   ```nix
+   nix-darwin = {
+     url = "github:nix-darwin/nix-darwin";
+     inputs.nixpkgs.follows = "nixpkgs";
+   };
+   ```
+
+2. Add a loader at `machines/darwin/default.nix`:
+
+   ```nix
+   { self, ... }:
+   {
+     flake.darwinConfigurations.ada = self.inputs.nix-darwin.lib.darwinSystem {
+       specialArgs = { inherit (self) inputs; };
+       modules = [ ./ada/configuration.nix ];
+     };
+   }
+   ```
+
+3. Wire it into `flake.nix` (add `./machines/darwin` to `imports`), then:
+
+   ```sh
+   nix flake lock                        # records the nix-darwin input
+   darwin-rebuild switch --flake .#ada
+   ```
+
+Ollama then serves on `127.0.0.1:11434` (Metal). Front it with the Open WebUI on
+`grace`, or set `OLLAMA_HOST = "0.0.0.0:11434"` in the agent to serve the LAN.
