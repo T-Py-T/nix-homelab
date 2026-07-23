@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       build_host:
-        description: "Optionally build this host's full closure (e.g. alison, grace). Empty = skip."
+        description: "Optionally build a host closure: alison, grace (Linux), or ada (macOS). Empty = skip."
         required: false
         default: ""
 
@@ -35,27 +35,19 @@ jobs:
       - name: Flake check
         run: nix flake check --print-build-logs
 
-  # Opt-in full-closure build, triggered manually via "Run workflow" with a host
-  # name. Deliberately off the PR/push path: building the general services host
-  # is heavy, and the GPU node `grace` is aarch64 + CUDA, which a shared x86
-  # runner can only emulate (slow, and may exceed its disk/time). For real GPU
-  # builds, change `runs-on` to a self-hosted aarch64 runner.
-  build-host:
-    name: build host closure
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_host != '' }}
-    runs-on: ubuntu-latest
+  # Opt-in Linux host build (Actions -> Run workflow -> host). `grace` is
+  # aarch64, so it builds on a native ARM runner (no emulation). CUDA closures
+  # are large; a heavy build may need a roomier/self-hosted runner.
+  build-linux:
+    name: build ${{ inputs.build_host }} (linux)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_host != '' && inputs.build_host != 'ada' }}
+    runs-on: ${{ inputs.build_host == 'grace' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (aarch64 emulation for grace)
-        uses: docker/setup-qemu-action@v3
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: |
-            extra-platforms = aarch64-linux
 
       - name: Cache Nix store
         uses: DeterminateSystems/magic-nix-cache-action@main
@@ -64,3 +56,26 @@ jobs:
         run: |
           nix build --print-build-logs \
             ".#nixosConfigurations.${{ inputs.build_host }}.config.system.build.toplevel"
+
+  # Opt-in darwin build. Darwin can only build on macOS - never in a Linux
+  # container - so `ada` builds on an Apple Silicon macOS runner from the
+  # machines/darwin sub-flake.
+  build-darwin-ada:
+    name: build ada (darwin)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_host == 'ada' }}
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Cache Nix store
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build ada (darwin) system
+        working-directory: machines/darwin
+        run: |
+          nix flake lock
+          nix build --print-build-logs '.#darwinConfigurations.ada.system'
