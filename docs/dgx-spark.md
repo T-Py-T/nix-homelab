@@ -30,8 +30,18 @@ workstation is fine.
 4. **Verify**: `nvidia-smi`, `systemctl status ollama`, `ollama run llama3.2`,
    and open `https://chat.<baseDomain>`.
 
-CI evaluates `grace` on every run but does not build its aarch64/CUDA closure
-(impractical on shared runners). To build it, run the `check` workflow's opt-in
-`build host closure` job (Actions -> Run workflow -> host `grace`) pointed at a
-self-hosted aarch64 runner, or just build on the DGX. Install + SSH mechanics:
-[nixos.md](./nixos.md).
+## Confirm the build without the DGX
+
+`grace` is Linux, so its closure builds anywhere with the right architecture -
+no DGX and no GPU needed (building CUDA is compilation, not execution):
+
+- **Container (devpod):** the `.devcontainer` runs `nixos/nix`. On Apple Silicon
+  it is native aarch64 Linux, so from the repo root:
+  `nix build .#nixosConfigurations.grace.config.system.build.toplevel`
+  (give Docker enough disk - CUDA closures are large).
+- **CI:** run the `check` workflow with host `grace` (Actions -> Run workflow);
+  it builds on a native `ubuntu-24.04-arm` runner. A full CUDA build may exceed a
+  shared runner's disk - point `runs-on` at a self-hosted aarch64 runner for
+  heavy builds.
+
+Install + SSH mechanics: [nixos.md](./nixos.md).

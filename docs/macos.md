@@ -5,45 +5,51 @@
 ## What's loaded
 
 Ollama serving models on **Metal** (a launchd agent from the nixpkgs `ollama`
-package), config at `machines/darwin/ada/configuration.nix`. This is the macOS
-side of the `ai` role: macOS is not a NixOS host, so it does not run the
-`homelab.services` tree - Open WebUI and monitoring live on `grace`.
+package), config at `machines/darwin/ada/configuration.nix`, built by the
+`machines/darwin` sub-flake. This is the macOS side of the `ai` role: macOS is
+not a NixOS host, so it does not run the `homelab.services` tree - Open WebUI and
+monitoring live on `grace`. Set `system.primaryUser` in the config to your macOS
+login name.
 
-## Build and deploy
+## Confirm the config (build it)
 
-macOS uses **nix-darwin**, which needs a flake input + a `flake.lock` update, so
-`ada` ships **unwired**. Activate it on a machine that has Nix:
+Darwin builds **only on macOS** - so build it on your Mac (no container can),
+from the sub-flake:
 
-1. Add the input to `flake.nix`:
+```sh
+cd machines/darwin
+nix flake lock                               # first time: pin nix-darwin + nixpkgs
+nix build .#darwinConfigurations.ada.system  # build the darwin system
+```
 
-   ```nix
-   nix-darwin = {
-     url = "github:nix-darwin/nix-darwin";
-     inputs.nixpkgs.follows = "nixpkgs";
-   };
-   ```
+Or in CI: run the `check` workflow with host `ada` (Actions -> Run workflow); it
+builds on a macOS runner.
 
-2. Add a loader at `machines/darwin/default.nix`:
+## Can an ARM container confirm it?
 
-   ```nix
-   { self, ... }:
-   {
-     flake.darwinConfigurations.ada = self.inputs.nix-darwin.lib.darwinSystem {
-       specialArgs = { inherit (self) inputs; };
-       modules = [ ./ada/configuration.nix ];
-     };
-   }
-   ```
+Only partly, and this is the one place the fleet truly diverges. A Linux Nix
+container (devcontainer / devpod), even an arm64 one, is still **Linux**: it can
+*evaluate* the darwin config to confirm it is well-formed and every derivation
+resolves -
 
-3. Wire it into `flake.nix` (add `./machines/darwin` to `imports`), then:
+```sh
+cd machines/darwin && nix flake lock
+nix build --dry-run .#darwinConfigurations.ada.system
+```
 
-   ```sh
-   nix flake lock                        # records the nix-darwin input
-   darwin-rebuild switch --flake .#ada
-   ```
+but it can never *build* a darwin system, because darwin compilation needs the
+macOS SDK/stdenv. The full build is the macOS-only step above (your Mac, or the
+macOS CI runner). Containers are for the Linux hosts (`grace`, `alison`).
 
-Ollama then serves on `127.0.0.1:11434` (Metal). Front it with the Open WebUI on
-`grace`, or set `OLLAMA_HOST = "0.0.0.0:11434"` in the agent to serve the LAN.
+## Deploy
+
+```sh
+cd machines/darwin
+# first time (bootstraps nix-darwin):
+sudo nix run nix-darwin -- switch --flake .#ada
+# after that:
+darwin-rebuild switch --flake .#ada
+```
 
 ## Deploying the NixOS fleet from a Mac workstation
 
@@ -59,4 +65,5 @@ build on the remote target work; those that build locally do not:
 | `just build <host>` | locally | no - would build Linux on the Mac |
 
 To make the local-build recipes work, give Nix a Linux remote builder (a NixOS
-box in `nix.buildMachines`, or `nix-darwin`'s `nix.linux-builder.enable`).
+box in `nix.buildMachines`, or `nix-darwin`'s `nix.linux-builder.enable`) - or
+use the devcontainer, which is a native aarch64 Linux Nix environment.
