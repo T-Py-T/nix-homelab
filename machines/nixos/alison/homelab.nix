@@ -2,18 +2,14 @@
 # ============================================================================
 # HOST: alison - homelab service selection
 #
-# Services are selected by *importance tier* rather than one-by-one. Set
-# `services.enabledTiers` and every service in those tiers turns on
+# Services are selected by *profile* rather than one-by-one. Set
+# `services.enabledProfiles` and every service in those profiles turns on
 # automatically. You can still flip an individual service explicitly (see the
-# overrides block) and that always wins over the tier default.
+# overrides block) and that always wins over the profile default.
 #
-# Tiers (a service's tier is declared in its module, `importance = ...`):
-#   high   - core infra, observability, critical data, the dashboard
-#   medium - general self-hosted apps and primary media
-#   low    - acquisition stack (arr/downloaders) and niche/infra bits
-#
-# For now this single box runs everything; as more machines come online, give
-# each host a different set of tiers to spread the load.
+# Profiles are defined centrally in modules/homelab/services/default.nix
+# (`homelab.services.profiles`). This box is the general-purpose node, so it
+# runs everything except the GPU-only `ai` profile (see the `grace` host).
 # ============================================================================
 {
   homelab = {
@@ -29,21 +25,28 @@
     services = {
       enable = true;
 
-      # Turn on whole tiers of services at once. Everything runs here for now.
-      enabledTiers = [
-        "high"
-        "medium"
-        "low"
+      # Turn on whole profiles at once.
+      enabledProfiles = [
+        "core"
+        "media"
+        "arr"
+        "downloads"
+        "productivity"
+        "git"
+        "comms"
+        "analytics"
+        "smarthome"
+        "net"
       ];
 
       # ----------------------------------------------------------------------
       # PER-SERVICE OVERRIDES
       #
-      # These win over the tier defaults above. Use them to pull a single
-      # service in or out without changing a whole tier, or to pass settings.
+      # These win over the profile defaults above. Use them to pull a single
+      # service in or out without changing a whole profile, or to pass settings.
       # ----------------------------------------------------------------------
 
-      # Prometheus needs its scrape targets configured regardless of tier.
+      # Prometheus needs its scrape targets configured regardless of profile.
       prometheus.scrapeTargets = [
         {
           job_name = "node";

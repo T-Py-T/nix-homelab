@@ -1,18 +1,20 @@
 # Running the homelab on NixOS
 
 The homelab hosts run NixOS. Each machine is a flake output, and services are
-chosen per host by importance tier. This guide covers installing a box,
+chosen per host by profile. This guide covers installing a box,
 deploying changes, extending the fleet, and the day-to-day options.
 
-## Service selection (importance tiers)
+## Service selection (profiles)
 
-Each service declares an importance tier in its module
-(`importance = homelabLib.mkImportance "high"`). A host enables whole tiers at
-once; every service in an enabled tier turns on automatically.
+Services are chosen per host by **profile** - a named bundle of services defined
+centrally in `modules/homelab/services/default.nix` (`homelab.services.profiles`).
+A host lists the profiles it should run; every service in those profiles turns on
+automatically.
 
-- `high` - core infra, observability, critical data, the dashboard
-- `medium` - general self-hosted apps and primary media
-- `low` - the acquisition stack (arr/downloaders) and niche/infra bits
+Built-in profiles include `core` (monitoring + dashboard), `ai` (Ollama + Open
+WebUI), `media`, `arr`, `downloads`, `productivity`, `git`, `comms`, `analytics`,
+`smarthome`, and `net`. Edit or extend `homelab.services.profiles` to define your
+own - there is no fixed set.
 
 A host's `homelab.nix`:
 
@@ -22,18 +24,18 @@ homelab = {
   baseDomain = "home.lan";
   services = {
     enable = true;
-    enabledTiers = [ "high" "medium" "low" ];   # everything, for a single box
+    enabledProfiles = [ "core" "media" "arr" ];  # the bundles this host runs
 
-    # Per-service overrides always win over the tier default:
-    #   jellyfin.enable = false;                 # pull one service out
-    #   sonarr.enable = true;                    # pull one in
-    prometheus.scrapeTargets = [ /* ... */ ];    # or just pass settings
+    # Per-service overrides always win over the profile default:
+    #   jellyfin.enable = false;                  # pull one service out
+    #   sonarr.enable = true;                      # pull one in
+    prometheus.scrapeTargets = [ /* ... */ ];      # or just pass settings
   };
 };
 ```
 
-To spread the fleet later, give each host a different `enabledTiers` (a small
-box gets `[ "high" ]`, a beefy one gets all three). No module changes needed.
+Unknown profile names or services fail evaluation with a clear error. To split
+the fleet, give each host the profiles it should run - no module changes needed.
 
 Every enabled service registers a [Caddy](https://caddyserver.com) virtual host
 at `<service>.<baseDomain>` and appears on the Homepage dashboard, grouped by
@@ -78,7 +80,7 @@ box, or copy it to a new name (`cp -r machines/nixos/alison machines/nixos/<host
   boot.loader.efi.canTouchEfiVariables = true;
   ```
 
-- **`homelab.nix`** - set `baseDomain`, `timeZone`, and `enabledTiers`.
+- **`homelab.nix`** - set `baseDomain`, `timeZone`, and `enabledProfiles`.
 
 Finally add your SSH public key so you can log in and deploy. Edit
 `machines/nixos/_common/default.nix` and replace the placeholder key on
@@ -141,11 +143,37 @@ a different tier selection - that is how load is spread across the fleet:
    machine) and set the bootloader in `configuration.nix`.
 3. If it is a different CPU architecture, add it to `systemArchMap` in
    `machines/nixos/default.nix` (e.g. `<newhost> = "aarch64-linux";`).
-4. In its `homelab.nix`, set `enabledTiers` to just the tiers this box should run
-   (a low-power node might take only `[ "high" ]`; a NAS might take `[ "low" ]`
-   for the download stack). Your key is already in `_common`, so no key edit.
+4. In its `homelab.nix`, set `enabledProfiles` to just the profiles this box
+   should run (a GPU node might take `[ "core" "ai" ]`; a NAS `[ "media" "arr"
+   "downloads" ]`). Your key is already in `_common`, so no key edit.
 5. Add an `~/.ssh/config` entry, then `nixos-install --flake ...#<newhost>` on
    the target and `just deploy <newhost>` from then on.
+
+## GPU / AI model serving
+
+The `ai` profile serves LLMs locally: **Ollama** (model backend, API at
+`ollama.<baseDomain>`) and **Open WebUI** (chat UI at `chat.<baseDomain>`). On a
+host with an NVIDIA GPU, enable `homelab.gpu` and Ollama automatically builds
+against CUDA:
+
+```nix
+homelab = {
+  enable = true;
+  gpu.enable = true;                    # NVIDIA driver + CUDA + container toolkit
+  services = {
+    enable = true;
+    enabledProfiles = [ "core" "ai" ];
+    # ollama.loadModels = [ "llama3.2" ];   # optional: pull models on first boot
+  };
+};
+```
+
+`homelab.gpu` wires the NVIDIA driver, CUDA userspace, and the container toolkit
+(CDI) - the same enablement a Kubernetes GPU worker builds on. Without a GPU the
+`ai` profile still works (Ollama falls back to the CPU build).
+
+The example GPU node is `grace` (a DGX Spark, aarch64). For a Mac Studio serving
+models on Metal, see the `ada` host in [macos.md](./macos.md).
 
 ## TLS
 
@@ -186,7 +214,7 @@ modules, then add it to the `imports` list in
 `modules/homelab/services/default.nix`. The pattern:
 
 ```nix
-{ config, lib, homelabLib, ... }:
+{ config, lib, ... }:
 let
   service = "myservice";
   cfg = config.homelab.services.${service};
@@ -195,7 +223,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable ${service}";
-    importance = homelabLib.mkImportance "medium";   # high | medium | low
     url = lib.mkOption {
       type = lib.types.str;
       default = "myservice.${homelab.baseDomain}";
@@ -217,8 +244,10 @@ in
 }
 ```
 
-Icons come from the [dashboard-icons](https://github.com/homarr-labs/dashboard-icons)
-set that Homepage bundles.
+List the new service in a profile (`homelab.services.profiles`) or enable it
+directly on a host to turn it on. Icons come from the
+[dashboard-icons](https://github.com/homarr-labs/dashboard-icons) set that
+Homepage bundles.
 
 ## Secrets
 
