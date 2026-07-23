@@ -26,9 +26,6 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@main
-
       # Evaluates every host in flake.nixosConfigurations (including the aarch64
       # GPU node `grace`) plus the treefmt formatter config. Evaluation is the
       # gate: it proves each host is well-formed without building closures.
@@ -36,8 +33,9 @@ jobs:
         run: nix flake check --print-build-logs
 
   # Opt-in Linux host build (Actions -> Run workflow -> host). `grace` is
-  # aarch64, so it builds on a native ARM runner (no emulation). CUDA closures
-  # are large; a heavy build may need a roomier/self-hosted runner.
+  # aarch64, so it builds on a native ARM runner (no emulation). A full CUDA
+  # closure is large; a heavy build may exceed a shared runner's disk - point
+  # `runs-on` at a self-hosted aarch64 runner for those.
   build-linux:
     name: build ${{ inputs.build_host }} (linux)
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_host != '' && inputs.build_host != 'ada' }}
@@ -46,11 +44,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache 2>/dev/null || true
+          df -h /
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build ${{ inputs.build_host }} closure
         run: |
@@ -70,9 +70,6 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build ada (darwin) system
         working-directory: machines/darwin
