@@ -2,7 +2,6 @@
   pkgs,
   config,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -24,8 +23,6 @@ in
 {
   options.homelab.services.wireguard-netns = {
     enable = lib.mkEnableOption "Wireguard client network namespace";
-
-    importance = homelabLib.mkImportance "low";
 
     namespace = lib.mkOption {
       type = lib.types.str;

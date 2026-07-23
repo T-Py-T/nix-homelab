@@ -18,7 +18,7 @@ let
 
   # Per-host CPU architecture. Anything not listed here defaults to x86_64.
   systemArchMap = {
-    # example: rpi = "aarch64-linux";
+    grace = "aarch64-linux"; # DGX Spark (NVIDIA Grace-Blackwell)
   };
 in
 {

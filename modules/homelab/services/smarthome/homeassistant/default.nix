@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  homelabLib,
   ...
 }:
 # ============================================================================
@@ -19,8 +18,6 @@ in
 {
   options.homelab.services.${service} = {
     enable = lib.mkEnableOption "Enable Home Assistant";
-
-    importance = homelabLib.mkImportance "medium";
 
     configDir = lib.mkOption {
       type = lib.types.str;

@@ -1,0 +1,16 @@
+{
+  // .devcontainer/devcontainer.json
+  // A Nix-enabled container (devpod / VS Code) for building the *Linux* hosts
+  // without native tooling. On Apple Silicon this image is native aarch64
+  // Linux, so it builds `grace` (aarch64) with no DGX and no emulation:
+  //   nix build .#nixosConfigurations.grace.config.system.build.toplevel
+  // It can *evaluate* the darwin host (`ada`) but never *build* it - darwin
+  // needs macOS. Build `ada` on the Mac itself (see docs/macos.md).
+  "name": "nix-homelab",
+  "image": "nixos/nix:latest",
+  "runArgs": ["--privileged"],
+  "containerEnv": {
+    "NIX_CONFIG": "experimental-features = nix-command flakes\nsandbox = false"
+  },
+  "postCreateCommand": "nix --version"
+}
