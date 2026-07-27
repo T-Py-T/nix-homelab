@@ -30,3 +30,4 @@ modules/homelab/                   # the homelab.* namespace, profiles, GPU, rev
 - [docs/general-homelab.md](docs/general-homelab.md) - the general services host (`alison`): what runs + deploy.
 - [docs/dgx-spark.md](docs/dgx-spark.md) - the GPU model-serving node (`grace`): what runs + deploy.
 - [docs/macos.md](docs/macos.md) - the Mac Studio AI node (`ada`) + deploying from macOS.
+- [docs/todo-services.md](docs/todo-services.md) - planned services to add (Komodo, keycloak, ...).
