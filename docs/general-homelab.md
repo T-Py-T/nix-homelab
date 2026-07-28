@@ -4,18 +4,19 @@
 
 ## What's loaded
 
-Profiles enabled in `machines/nixos/alison/homelab.nix`: `core`, `media`, `arr`,
-`downloads`, `productivity`, `git`, `comms`, `analytics`, `smarthome`, `net`.
+Profiles enabled in `machines/nixos/alison/homelab.nix`: `core`, `ops`, `media`,
+`arr`, `downloads`, `productivity`, `git`, `comms`, `analytics`, `smarthome`, `net`.
 That is:
 
 - **core** - Prometheus, Grafana, node-exporter, Uptime Kuma, the Homepage dashboard
+- **ops** - Komodo (Docker compose stack manager, wired to Forgejo for stack VC)
 - **media** - Jellyfin, Audiobookshelf, Navidrome, Immich
 - **arr / downloads** - Prowlarr, Sonarr, Radarr, Bazarr, Lidarr, Jellyseerr; Deluge, SABnzbd, slskd
 - **productivity** - Nextcloud, Paperless, Radicale, Vaultwarden, Miniflux, Microbin
 - **git / comms / analytics / smarthome / net** - Forgejo (+ runner), Matrix, Plausible, Home Assistant, RaspberryMatic, WireGuard netns
 
 Each is reverse-proxied at `<service>.<baseDomain>` and listed on the Homepage
-dashboard. Change what runs by editing `enabledProfiles` (or a per-service
+dashboard. Tailscale (mesh VPN) runs on every node via `_common`. Change what runs by editing `enabledProfiles` (or a per-service
 `enable`) in `machines/nixos/alison/homelab.nix`.
 
 ## Build and deploy
