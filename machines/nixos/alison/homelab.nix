@@ -28,6 +28,7 @@
       # Turn on whole profiles at once.
       enabledProfiles = [
         "core"
+        "ops"
         "media"
         "arr"
         "downloads"

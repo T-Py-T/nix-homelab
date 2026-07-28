@@ -44,6 +44,18 @@
   networking.firewall.enable = true;
 
   # --------------------------------------------------------------------------
+  # TAILSCALE - mesh VPN on every node (https://wiki.nixos.org/wiki/Tailscale)
+  #
+  # Run `sudo tailscale up` once per host to authenticate (or set
+  # `services.tailscale.authKeyFile` to a pre-auth key for hands-off join).
+  # --------------------------------------------------------------------------
+  services.tailscale = {
+    enable = true;
+    openFirewall = true; # allow the tailscaled UDP port for direct connections
+  };
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
+  # --------------------------------------------------------------------------
   # SSH
   # --------------------------------------------------------------------------
   services.openssh = {

@@ -69,6 +69,7 @@ in
           "ollama"
           "open-webui"
         ];
+        ops = [ "komodo" ];
         media = [
           "jellyfin"
           "audiobookshelf"
@@ -277,6 +278,9 @@ in
     # Git hosting / CI
     ./forgejo
     ./forgejo-runner
+
+    # Ops / management
+    ./komodo
 
     # General services
     ./miniflux
