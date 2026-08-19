@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 # ============================================================================
@@ -10,10 +9,8 @@
 # Dashboards for the metrics collected by Prometheus. The Prometheus module
 # auto-provisions itself as the default datasource when both are enabled.
 #
-# NOTE: nixpkgs requires `security.secret_key` to be set via a file provider.
-# A build-time placeholder is generated here so the host evaluates and boots
-# out of the box - override `secretKeyFile` with a real secret (e.g. agenix)
-# before exposing Grafana.
+# NOTE: `secretKeyFile` must point to a file provisioned outside the Nix store,
+# for example by a secret manager such as agenix or sops-nix.
 # ============================================================================
 let
   service = "grafana";
@@ -32,10 +29,13 @@ in
     };
 
     secretKeyFile = lib.mkOption {
-      type = lib.types.path;
-      default = pkgs.writeText "grafana-secret-key" "CHANGEME_generate_a_real_grafana_secret_key";
-      defaultText = lib.literalMD "a build-time placeholder - override with a secret!";
-      description = "File containing Grafana's `security.secret_key`.";
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      example = "/run/secrets/grafana-secret-key";
+      description = ''
+        Runtime file containing Grafana's `security.secret_key`. The file must
+        be provisioned separately and must not be stored in the Nix store.
+      '';
     };
 
     homepage.name = lib.mkOption {
@@ -57,11 +57,17 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.secretKeyFile != null;
+        message = "homelab.services.grafana.secretKeyFile must be set when Grafana is enabled";
+      }
+    ];
+
     services.grafana = {
       enable = true;
       provision.enable = true;
       settings = {
-        security.secret_key = "$__file{${cfg.secretKeyFile}}";
         server = {
           http_addr = addr;
           http_port = port;
@@ -73,6 +79,9 @@ in
           enabled = true;
           org_role = "Viewer";
         };
+      }
+      // lib.optionalAttrs (cfg.secretKeyFile != null) {
+        security.secret_key = "$__file{${cfg.secretKeyFile}}";
       };
     };
 

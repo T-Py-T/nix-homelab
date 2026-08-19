@@ -35,6 +35,10 @@
         }
       ];
 
+      # This path is a contract only. Provision the file separately before
+      # activating this host; no secret value is stored in the flake.
+      grafana.secretKeyFile = "/run/secrets/grafana-secret-key";
+
       # Pull starter models on first boot (optional - uncomment to use):
       #   ollama.loadModels = [ "llama3.2" "qwen2.5-coder" ];
     };
