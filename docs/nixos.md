@@ -251,9 +251,38 @@ Homepage bundles.
 
 ## Secrets
 
-Secrets are currently inline build-time placeholders (e.g. Miniflux admin
-credentials, Grafana's secret key) so a host evaluates and boots out of the box.
-**Change these before exposing any service.** Migrating to
-[agenix](https://github.com/ryantm/agenix) - which encrypts secrets at rest and
-decrypts them per host with each machine's SSH key - is the intended follow-up
-once a second machine exists.
+Miniflux and Grafana deliberately have no credential defaults. When either
+service is enabled, evaluation requires an explicit runtime file path:
+
+```nix
+homelab.services = {
+  miniflux.adminCredentialsFile = "/run/secrets/miniflux-admin.env";
+  grafana.secretKeyFile = "/run/secrets/grafana-secret-key";
+};
+```
+
+The Miniflux file is a systemd `EnvironmentFile` containing
+`ADMIN_USERNAME` and `ADMIN_PASSWORD`; the Grafana file contains its
+`security.secret_key`. These literal paths are configuration contracts only.
+The flake neither creates the files nor contains their values, so provision
+them on each host before activation with a secret manager such as
+[agenix](https://github.com/ryantm/agenix), sops-nix, or another out-of-band
+mechanism.
+
+The tracked `alison` configuration declares both paths, while `grace` declares
+the Grafana path used by its `core` profile. Missing option values fail NixOS
+evaluation with a service-specific assertion; missing files still fail the
+service at runtime and remain the operator's provisioning responsibility.
+
+### Miniflux and Grafana VM check
+
+Run the representative x86_64-linux service-startup check with:
+
+```sh
+nix build .#checks.x86_64-linux.miniflux-grafana-vm
+```
+
+The test creates synthetic test-only files in the VM closure, boots Miniflux
+and Grafana, and probes their local health endpoints. It validates module
+composition and service startup in that isolated VM. It does not exercise a
+real host, secret manager, deployment, restore, or production credential.

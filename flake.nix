@@ -18,7 +18,7 @@
   outputs =
     inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } (
-      { ... }:
+      { lib, ... }:
       {
         systems = [
           "x86_64-linux"
@@ -29,6 +29,14 @@
           ./machines/nixos
           ./modules/devshell.nix
         ];
+
+        perSystem =
+          { pkgs, system, ... }:
+          {
+            checks = lib.optionalAttrs (system == "x86_64-linux") {
+              miniflux-grafana-vm = import ./tests/miniflux-grafana.nix { inherit pkgs; };
+            };
+          };
       }
     );
 }
