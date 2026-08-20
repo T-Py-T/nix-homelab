@@ -55,6 +55,11 @@
           ];
         }
       ];
+
+      # These paths are contracts only. Provision both files separately before
+      # activating this host; no credential values are stored in the flake.
+      miniflux.adminCredentialsFile = "/run/secrets/miniflux-admin.env";
+      grafana.secretKeyFile = "/run/secrets/grafana-secret-key";
     };
   };
 }

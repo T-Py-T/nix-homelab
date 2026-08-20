@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 # ============================================================================
@@ -10,9 +9,8 @@
 # Minimalist RSS/Atom feed reader (the modern replacement for the old FreshRSS
 # module). Uses a local PostgreSQL database provisioned by the NixOS module.
 #
-# NOTE: `adminCredentialsFile` should be provided via a secret manager (e.g.
-# agenix) in production. A build-time placeholder is generated here so the
-# host evaluates and boots out of the box - CHANGE THIS before exposing it.
+# NOTE: `adminCredentialsFile` must point to a file provisioned outside the
+# Nix store, for example by a secret manager such as agenix or sops-nix.
 # ============================================================================
 let
   service = "miniflux";
@@ -30,13 +28,14 @@ in
       default = "rss.${homelab.baseDomain}";
     };
     adminCredentialsFile = lib.mkOption {
-      type = lib.types.path;
-      default = pkgs.writeText "miniflux-admin.env" ''
-        ADMIN_USERNAME=admin
-        ADMIN_PASSWORD=changeme
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      example = "/run/secrets/miniflux-admin.env";
+      description = ''
+        Runtime EnvironmentFile containing ADMIN_USERNAME and ADMIN_PASSWORD.
+        The file must be provisioned separately and must not be stored in the
+        Nix store.
       '';
-      defaultText = lib.literalMD "a build-time placeholder - override with a secret!";
-      description = "EnvironmentFile with ADMIN_USERNAME and ADMIN_PASSWORD.";
     };
 
     homepage.name = lib.mkOption {
@@ -58,6 +57,13 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.adminCredentialsFile != null;
+        message = "homelab.services.miniflux.adminCredentialsFile must be set when Miniflux is enabled";
+      }
+    ];
+
     services.${service} = {
       enable = true;
       adminCredentialsFile = cfg.adminCredentialsFile;

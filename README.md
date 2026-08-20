@@ -30,3 +30,23 @@ modules/homelab/                   # the homelab.* namespace, profiles, GPU, rev
 - [docs/general-homelab.md](docs/general-homelab.md) - the general services host (`alison`): what runs + deploy.
 - [docs/dgx-spark.md](docs/dgx-spark.md) - the GPU model-serving node (`grace`): what runs + deploy.
 - [docs/macos.md](docs/macos.md) - the Mac Studio AI node (`ada`) + deploying from macOS.
+
+## Secret and reliability checks
+
+Enabled Miniflux and Grafana services require explicit runtime file paths for
+their credentials. The tracked hosts use `/run/secrets/miniflux-admin.env` and
+`/run/secrets/grafana-secret-key`; the flake does not create or populate those
+files. Provision them on each host before activation with a secret manager or
+another out-of-band mechanism described in [docs/nixos.md](docs/nixos.md#secrets).
+
+The x86_64-linux flake checks include a NixOS VM test that supplies synthetic,
+test-only files, boots Miniflux and Grafana, and probes both local health
+endpoints:
+
+```sh
+nix build .#checks.x86_64-linux.miniflux-grafana-vm
+```
+
+This proves the representative module composition starts successfully; it does
+not prove that a real host has provisioned its runtime files or completed an
+activation.
