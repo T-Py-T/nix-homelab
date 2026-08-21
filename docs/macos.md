@@ -22,8 +22,9 @@ nix flake lock                               # first time: pin nix-darwin + nixp
 nix build .#darwinConfigurations.ada.system  # build the darwin system
 ```
 
-Or in CI: run the `check` workflow with host `ada` (Actions -> Run workflow); it
-builds on a macOS runner.
+There is currently no hosted macOS build. Validate this sub-flake on the target
+Mac before switching; the repository's pull-request workflow evaluates the main
+Linux flake only.
 
 ## Can an ARM container confirm it?
 
