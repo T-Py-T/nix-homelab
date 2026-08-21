@@ -1,8 +1,21 @@
-# nix-homelab
+# Nix Homelab
 
-A modular NixOS homelab. Each machine is a flake output and every service is a
-self-contained module, selected per host by profile. Modelled on
-[notthebee/nix-config](https://git.notthebe.ee/notthebee/nix-config).
+A modular NixOS homelab plus a separate nix-darwin AI host. Each Linux machine
+is a flake output; services are self-contained modules selected per host by
+profile; deploy, dry-run, and build operations share a small `just` interface.
+The structure is modelled on
+[notthebee/nix-config](https://git.notthebee.ee/notthebee/nix-config).
+
+## At a glance
+
+| Capability | Public evidence | What it demonstrates |
+| --- | --- | --- |
+| Fleet composition | [`machines/nixos/`](machines/nixos) | Shared host baseline plus role-specific NixOS configurations |
+| Reusable service platform | [`modules/homelab/`](modules/homelab) | Option-driven modules for media, monitoring, AI, collaboration, and home services |
+| GPU / AI nodes | [`docs/dgx-spark.md`](docs/dgx-spark.md), [`docs/macos.md`](docs/macos.md) | NVIDIA/NixOS and Apple Silicon/nix-darwin operating boundaries |
+| Safe deployment interface | [`justfile`](justfile) | Separate build, dry-activate, boot, and switch paths |
+| Runtime secret boundary | [`docs/nixos.md#secrets`](docs/nixos.md#secrets) | Tracked configuration references runtime files rather than embedding credentials |
+| Executable reliability check | [`tests/miniflux-grafana.nix`](tests/miniflux-grafana.nix) | A NixOS VM boots representative services and probes health endpoints |
 
 Deploying a new host or updating an existing one is a single command from the
 dev shell - it builds the config on the target and switches:
@@ -50,3 +63,20 @@ nix build .#checks.x86_64-linux.miniflux-grafana-vm
 This proves the representative module composition starts successfully; it does
 not prove that a real host has provisioned its runtime files or completed an
 activation.
+
+## Validation model
+
+```sh
+just fmt
+nix flake check --no-build
+nix build .#checks.x86_64-linux.miniflux-grafana-vm
+```
+
+Agents run these checks locally before publishing work. The hosted workflow is
+intentionally limited to pull requests and evaluates the flake without building
+the heavier VM closure, keeping GitHub Actions as a merge gate rather than a
+per-push test runner.
+
+The `machines/darwin` directory is an independent sub-flake. Its lock file is
+generated and validated on macOS; the main Linux flake and its committed lock do
+not establish reproducibility for that sub-flake.
