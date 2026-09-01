@@ -1,15 +1,7 @@
 name: check
 
 on:
-  push:
-    branches: [main]
   pull_request:
-  workflow_dispatch:
-    inputs:
-      build_host:
-        description: "Optionally build a host closure: alison, grace (Linux), or ada (macOS). Empty = skip."
-        required: false
-        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_host || 'check' }}
