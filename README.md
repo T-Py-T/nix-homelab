@@ -101,15 +101,17 @@ just fmt
 nix flake check --no-build
 ```
 
-Build the representative Miniflux/Grafana VM check on an x86_64 Linux system:
+Build the synthetic Miniflux and Grafana recovery check on an ARM64 Linux system:
 
 ```sh
-nix build .#checks.x86_64-linux.miniflux-grafana-vm
+nix build .#checks.aarch64-linux.miniflux-grafana-vm --print-build-logs
 ```
 
-The VM test supplies synthetic credentials, boots both services, and checks
-their local health endpoints. The `machines/darwin` sub-flake has its own lock
-file and should be evaluated on macOS.
+The VM test supplies synthetic credentials, deletes and restores bounded marker
+tables, and verifies both markers and service health. The
+[`docs/operability.md`](docs/operability.md) guide defines the procedure,
+evidence, and limits. The `machines/darwin` sub-flake has its own lock file and
+should be evaluated on macOS.
 
 ## Documentation
 
