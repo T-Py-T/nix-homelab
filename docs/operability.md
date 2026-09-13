@@ -53,7 +53,11 @@ test machine is disposable and contains only synthetic credentials and data.
 
 The retained packet under `results/restore-evidence-v1/` binds one successful
 run to the exact source revision, flake inputs, ARM64 guest, assertions, and
-observed stage durations. The manifest hashes every retained artifact.
+observed stage durations. In that software-emulated run, the restore-and-verify
+stage took 58.013 seconds and the full test took 528.228 seconds. The manifest
+hashes every retained artifact, and the packet's
+[`result.json`](../results/restore-evidence-v1/result.json) preserves the exact
+measurements.
 
 The drill proves only the marker-table recovery path. It does not prove a full
 PostgreSQL or Grafana backup, recovery of real data, a recovery time objective,
