@@ -1,0 +1,42 @@
+{
+  "assertions": [
+    "miniflux healthy before backup",
+    "grafana healthy before backup",
+    "exact synthetic marker written to both service databases",
+    "both bounded marker backups are non-empty and no larger than 1 MiB",
+    "documented marker-table deletion removed both synthetic markers",
+    "miniflux healthy after restore",
+    "grafana healthy after restore",
+    "exact synthetic marker recovered from the Miniflux database",
+    "exact synthetic marker recovered from the Grafana database"
+  ],
+  "backupSha256": {
+    "grafana": "4bcc4b3694e295e559b0a7095247f538c1ab0f4a7374e2b098e98730716f22be",
+    "miniflux": "9d5dd771e724e10185bc55e8f2f2ea1e307b6dc8b1ddd30f851224e3f327863a"
+  },
+  "backupSizesBytes": {
+    "grafana": 181,
+    "miniflux": 1716
+  },
+  "flakeLockSha256": "34c56afcb72796dae6ce2a8640e81c1784b899e5ca71c9db1559cb8549e3741c",
+  "guestArchitecture": "aarch64",
+  "limitations": [
+    "The drill restores synthetic marker tables only; it is not a full production backup.",
+    "The drill does not use real hosts, service data, credentials, or private configuration.",
+    "The observed durations describe one disposable aarch64 NixOS test run and are not an availability objective."
+  ],
+  "marker": "nix-homelab-restore-evidence-v1",
+  "modelCalls": 0,
+  "nixVersion": "nix (Nix) 2.34.8",
+  "result": "passed",
+  "scenario": "bounded synthetic Miniflux and Grafana marker-table backup, deletion, and restore",
+  "schemaVersion": "1.0",
+  "sourceRevision": "ff85dd76a4ce9cd50850845bb26aee3f881327ad",
+  "stageDurationsMs": {
+    "backup": 6569.073,
+    "failure_injection": 5484.031,
+    "restore_and_verify": 58012.638,
+    "start_and_seed": 456606.987,
+    "total": 528227.751
+  }
+}

@@ -16,7 +16,11 @@
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
+    inputs@{
+      self,
+      flake-parts,
+      ...
+    }:
     flake-parts.lib.mkFlake { inherit inputs; } (
       { lib, ... }:
       {
@@ -33,8 +37,11 @@
         perSystem =
           { pkgs, system, ... }:
           {
-            checks = lib.optionalAttrs (system == "x86_64-linux") {
-              miniflux-grafana-vm = import ./tests/miniflux-grafana.nix { inherit pkgs; };
+            checks = lib.optionalAttrs (system == "aarch64-linux") {
+              miniflux-grafana-vm = import ./tests/miniflux-grafana.nix {
+                inherit pkgs;
+                sourceRevision = self.rev or "dirty";
+              };
             };
           };
       }
