@@ -1,5 +1,7 @@
 # Nix Homelab
 
+[![check](https://github.com/T-Py-T/nix-homelab/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/T-Py-T/nix-homelab/actions/workflows/check.yml?query=branch%3Amain)
+
 A modular NixOS homelab with reusable service modules, per-host profiles, and a
 small `just` interface for building and deploying machines. Linux hosts are
 exposed as flake outputs; the macOS AI host is managed by a separate
