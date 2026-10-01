@@ -1,21 +1,40 @@
 # Security policy
 
+This public repository holds reproducible NixOS and nix-darwin homelab
+configuration. Runtime secrets, live hostnames, and production-only overlays
+belong on target machines or in private material outside this tree.
+
 ## Report a vulnerability
 
-Do not include credentials, hostnames, private addresses, or configuration in
-a public issue. Use GitHub's private vulnerability reporting when the
-repository Security tab offers it. If that option is unavailable, contact the
-maintainer through the GitHub profile before sharing sensitive details.
+If you find a credential, private key, access token, or current sensitive
+endpoint in the repository or its history, do not open a public issue. Use
+GitHub's private vulnerability reporting when the repository Security tab
+offers it. If that option is unavailable, contact the maintainer through the
+GitHub profile before sharing sensitive details.
 
-Include the affected file or module, the expected behavior, and the minimum
-steps needed to reproduce the problem with synthetic data.
+For other security-related defects in tracked configuration, describe the
+affected module or file, expected behavior, and minimal reproduction steps
+using synthetic data only. Do not include credentials, hostnames, private
+addresses, or live configuration in the report.
 
-## Repository boundary
+## Scope
 
-This repository defines NixOS systems and expects runtime secrets to exist
-outside the repository. Never commit a secret value, decrypted configuration,
-private backup, or host-specific evidence packet.
+Do not commit secret values, decrypted configuration, private backups, or
+host-specific evidence packets. See [docs/nixos.md#secrets](docs/nixos.md#secrets)
+for how runtime secrets are referenced without storing values in git.
 
-The recovery check uses disposable NixOS test machines, synthetic credentials,
-and synthetic marker tables. It does not connect to a homelab host or a real
-service database.
+The recovery check in [`tests/miniflux-grafana.nix`](tests/miniflux-grafana.nix)
+uses disposable NixOS test machines, synthetic credentials, and synthetic marker
+tables. It does not connect to a homelab host or a real service database.
+
+Public modules and documentation describe architecture; they do not by themselves
+grant access to any deployment.
+
+## Related documentation
+
+| Document | Role |
+| --- | --- |
+| [README.md](README.md) | Overview, layout, and validation commands |
+| [docs/HIREABILITY.md](docs/HIREABILITY.md) | Discoverability summary and doc index |
+| [docs/nixos.md](docs/nixos.md) | NixOS operations, TLS, and secrets |
+| [LICENSE](LICENSE) | License terms and upstream provenance |
