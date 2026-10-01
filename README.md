@@ -12,6 +12,10 @@ The layout is based on
 been adapted around this homelab's hosts, service tiers, GPU workloads, and
 runtime-secret model.
 
+**Discoverability:** hireability summary, suggested GitHub topics, and license
+pointers live in [docs/HIREABILITY.md](docs/HIREABILITY.md). Report sensitive
+findings through [SECURITY.md](SECURITY.md).
+
 ## What is included
 
 | Area | Location | Purpose |
