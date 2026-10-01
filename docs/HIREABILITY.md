@@ -1,7 +1,7 @@
 # Hireability and discoverability
 
-> Tip-cite bank: base main `559d38c` + this PR pending Steward; provenance only; never
-> `READY`.
+> Tip-cite bank: base main `1cb38c4` (Ship 264) + Ship 268 pending Steward; provenance
+> only; never `READY`.
 
 This page orients reviewers and search tools on **nix-homelab** without claiming
 release readiness, operational authorization, benchmark scores, or a homelab
