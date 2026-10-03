@@ -35,6 +35,5 @@ grant access to any deployment.
 | Document | Role |
 | --- | --- |
 | [README.md](README.md) | Overview, layout, and validation commands |
-| [docs/HIREABILITY.md](docs/HIREABILITY.md) | Discoverability summary and doc index |
 | [docs/nixos.md](docs/nixos.md) | NixOS operations, TLS, and secrets |
 | [LICENSE](LICENSE) | License terms and upstream provenance |
