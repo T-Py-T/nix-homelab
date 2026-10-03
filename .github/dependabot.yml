@@ -1,7 +1,7 @@
 # Ship 284 — lean Dependabot (docs-only; reversible).
 # Tip-cite: base main `654ab57e` + this PR pending Steward resolve; provenance
-# only — tip ≠ READY; do not invent READY claims without Steward sign-off.
-# Pairing: Ship 283 (kubernetes-gitops-homelab). Index: docs/HIREABILITY.md.
+# only — do not invent READY claims without Steward sign-off.
+# Pairing: Ship 283 (kubernetes-gitops-homelab).
 
 version: 2
 updates:
