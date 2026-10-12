@@ -32,6 +32,7 @@
         imports = [
           ./machines/nixos
           ./modules/devshell.nix
+          ./modules/flake-checks-ce0d.nix
         ];
 
         perSystem =

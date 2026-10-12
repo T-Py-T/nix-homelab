@@ -74,8 +74,8 @@ in
       user = hl.user;
       group = hl.group;
       settings = {
-        Address = addr;
-        Port = port;
+        Address = lib.mkDefault addr;
+        Port = lib.mkDefault port;
         MusicFolder = cfg.musicDir;
         DefaultDownsamplingFormat = "aac";
       };
@@ -83,7 +83,9 @@ in
 
     services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
       ${hl.mkCaddyTls}
-      reverse_proxy http://${addr}:${toString port}
+      reverse_proxy http://${config.services.${service}.settings.Address}:${
+        toString config.services.${service}.settings.Port
+      }
     '';
   };
 }
