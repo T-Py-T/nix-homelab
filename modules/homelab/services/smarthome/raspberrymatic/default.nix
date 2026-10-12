@@ -62,12 +62,11 @@ in
     virtualisation = {
       podman.enable = true;
       oci-containers.containers.ccu = {
-        image = "ghcr.io/jens-maus/raspberrymatic:latest";
+        image = "ghcr.io/jens-maus/raspberrymatic:3.89.11.20260919";
         autoStart = true;
         hostname = "ccu";
         dependsOn = [ "homeassistant" ];
         extraOptions = [
-          "--pull=newer"
           "--privileged"
           "--device=/dev/ttyUSB0:/dev/ttyUSB0"
           "--network=container:homeassistant"
