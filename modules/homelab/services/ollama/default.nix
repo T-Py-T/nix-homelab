@@ -31,10 +31,13 @@ in
     };
 
     package = lib.mkOption {
-      type = lib.types.package;
-      default = if homelab.gpu.enable then pkgs.ollama-cuda else pkgs.ollama;
+      type = lib.types.nullOr lib.types.package;
+      default = null;
       defaultText = lib.literalMD "`ollama-cuda` when `homelab.gpu.enable`, otherwise `ollama` (CPU)";
-      description = "Ollama package to run; selects the hardware acceleration backend.";
+      description = ''
+        Ollama package to run. When unset, the module picks `ollama-cuda` on GPU
+        hosts (`homelab.gpu.enable`) and the CPU build otherwise.
+      '';
     };
 
     loadModels = lib.mkOption {
@@ -71,7 +74,13 @@ in
   config = lib.mkIf cfg.enable {
     services.ollama = {
       enable = true;
-      package = cfg.package;
+      package =
+        if cfg.package != null then
+          cfg.package
+        else if homelab.gpu.enable then
+          pkgs.ollama-cuda
+        else
+          pkgs.ollama;
       host = addr;
       inherit port;
       loadModels = cfg.loadModels;

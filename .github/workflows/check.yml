@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   flake-check:
-    name: nix flake check
+    name: nix flake check (eval)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,8 +25,48 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
 
-      # Evaluate every host and check without building architecture-specific
-      # closures. Heavy VM and host builds stay local and explicit; this PR gate
-      # catches invalid configurations while remaining portable and inexpensive.
+      # Fast gate: evaluate every host and every check without building closures.
       - name: Evaluate flake
         run: nix flake check --no-build --print-build-logs
+
+  checks-x86_64:
+    name: build x86_64 checks
+    runs-on: ubuntu-latest
+    needs: flake-check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+
+      - name: Build unit, host, script, and VM checks
+        run: |
+          nix build --print-build-logs \
+            .#checks.x86_64-linux.unit-homelab \
+            .#checks.x86_64-linux.host-eval \
+            .#checks.x86_64-linux.motd-script \
+            .#checks.x86_64-linux.justfile \
+            .#checks.x86_64-linux.scripts-smoke \
+            .#checks.x86_64-linux.microbin-vm
+
+  checks-aarch64:
+    name: build aarch64 VM check
+    runs-on: ubuntu-24.04-arm
+    needs: flake-check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+
+      - name: Build host, unit, script, and recovery VM checks
+        run: |
+          nix build --print-build-logs \
+            .#checks.aarch64-linux.unit-homelab \
+            .#checks.aarch64-linux.host-eval \
+            .#checks.aarch64-linux.motd-script \
+            .#checks.aarch64-linux.justfile \
+            .#checks.aarch64-linux.scripts-smoke \
+            .#checks.aarch64-linux.miniflux-grafana-vm
