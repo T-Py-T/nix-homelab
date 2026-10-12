@@ -1,0 +1,31 @@
+name: module-eval-e8a8
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "modules/homelab/**"
+      - "tests/module-eval-e8a8/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "modules/homelab/**"
+      - "tests/module-eval-e8a8/**"
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    name: homelab module eval (e8a8)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+
+      - name: Run evaluation checks
+        run: ./tests/module-eval-e8a8/run.sh
