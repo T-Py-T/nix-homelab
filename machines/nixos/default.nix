@@ -1,4 +1,4 @@
-{
+top@{
   lib,
   self,
   ...
@@ -22,6 +22,26 @@ let
   };
 in
 {
+  perSystem =
+    {
+      pkgs,
+      lib,
+      system,
+      ...
+    }:
+    {
+      checks =
+        lib.genAttrs
+          (builtins.filter (name: (lib.attrByPath [ name ] "x86_64-linux" systemArchMap) == system) configs)
+          (
+            name:
+            pkgs.runCommand "nixos-${name}-eval" { } ''
+              test -n "${top.self.nixosConfigurations.${name}.config.system.build.toplevel.name}"
+              touch $out
+            ''
+          );
+    };
+
   flake.nixosConfigurations = lib.listToAttrs (
     builtins.map (
       name:

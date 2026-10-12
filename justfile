@@ -11,7 +11,7 @@ update:
 
 # Evaluate the whole flake (all hosts + formatting)
 check:
-  nix flake check
+  nix flake check --no-build --all-systems --print-build-logs
 
 # Format the entire tree with treefmt (nixfmt/deadnix/shellcheck)
 fmt:

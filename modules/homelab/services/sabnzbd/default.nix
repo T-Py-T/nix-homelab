@@ -44,6 +44,8 @@ in
   config = lib.mkIf cfg.enable {
     services.${service} = {
       enable = true;
+      # stateVersion < 26.05 defaults configFile to a legacy ini path; use settings.
+      configFile = null;
       user = homelab.user;
       group = homelab.group;
     };

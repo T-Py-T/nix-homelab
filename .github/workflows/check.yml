@@ -29,4 +29,10 @@ jobs:
       # closures. Heavy VM and host builds stay local and explicit; this PR gate
       # catches invalid configurations while remaining portable and inexpensive.
       - name: Evaluate flake
-        run: nix flake check --no-build --print-build-logs
+        run: |
+          set -o pipefail
+          nix flake check --no-build --all-systems --print-build-logs 2>&1 | tee /tmp/flake-check.log
+          if grep -E 'evaluation warning:' /tmp/flake-check.log; then
+            echo 'Evaluation warnings must be fixed (see log above).'
+            exit 1
+          fi
