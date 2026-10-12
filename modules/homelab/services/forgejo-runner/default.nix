@@ -18,6 +18,8 @@ let
   service = "forgejo-runner";
   cfg = config.homelab.services.${service};
   hl = config.homelab;
+  # SABnzbd (downloads profile) also defaults to 127.0.0.1:8080 on multi-service hosts.
+  atticListen = "127.0.0.1:8088";
 in
 {
   options.homelab.services.${service} = {
@@ -66,7 +68,7 @@ in
       enable = true;
       environmentFile = cfg.atticTokenFile;
       settings = {
-        listen = "127.0.0.1:8080";
+        listen = atticListen;
         allowed-hosts = [ cfg.atticUrl ];
         api-endpoint = "https://${cfg.atticUrl}/";
         jwt = { };
