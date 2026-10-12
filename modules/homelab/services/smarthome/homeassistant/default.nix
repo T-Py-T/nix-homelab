@@ -57,9 +57,8 @@ in
     virtualisation = {
       podman.enable = true;
       oci-containers.containers.homeassistant = {
-        image = "homeassistant/home-assistant:stable";
+        image = "homeassistant/home-assistant:2026.10.1";
         autoStart = true;
-        extraOptions = [ "--pull=newer" ];
         volumes = [ "${cfg.configDir}:/config" ];
         ports = [
           "127.0.0.1:${toString port}:8123"
