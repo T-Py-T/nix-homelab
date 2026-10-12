@@ -23,8 +23,6 @@ let
       ++ modules;
     };
 
-  tryMkHomelab = modules: builtins.tryEval (mkHomelab modules);
-
   homelabServiceNames =
     system:
     let
