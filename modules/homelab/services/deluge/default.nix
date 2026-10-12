@@ -16,7 +16,6 @@ let
   hl = config.homelab;
   cfg = hl.services.deluge;
   ns = hl.services.wireguard-netns.namespace;
-  webPort = 8112;
 in
 {
   options.homelab.services.deluge = {
@@ -62,7 +61,7 @@ in
 
     services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
       ${hl.mkCaddyTls}
-      reverse_proxy http://127.0.0.1:${toString webPort}
+      reverse_proxy http://127.0.0.1:${toString config.services.deluge.web.port}
     '';
 
     # Route the daemon through the Wireguard namespace when it is enabled.
