@@ -17,12 +17,11 @@
 
   outputs =
     inputs@{
-      self,
       flake-parts,
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } (
-      { lib, ... }:
+      { self, ... }:
       {
         systems = [
           "x86_64-linux"
@@ -35,12 +34,44 @@
         ];
 
         perSystem =
-          { pkgs, system, ... }:
           {
-            checks = lib.optionalAttrs (system == "aarch64-linux") {
+            pkgs,
+            lib,
+            system,
+            ...
+          }:
+          let
+            flake = self;
+            sourceRevision = flake.rev or "dirty";
+            flakeRoot = flake;
+          in
+          {
+            checks = {
+              unit-homelab = import ./tests/unit-homelab.nix { inherit pkgs lib; };
+              host-eval = import ./tests/host-eval.nix {
+                inherit pkgs lib system;
+                nixosConfigurations = flake.nixosConfigurations;
+              };
+              motd-script = import ./tests/motd-script.nix { inherit pkgs lib; };
+              justfile = import ./tests/justfile.nix {
+                inherit pkgs;
+                inherit flakeRoot;
+              };
+              scripts-smoke = import ./tests/scripts-smoke.nix {
+                inherit pkgs;
+                inherit flakeRoot;
+              };
+            }
+            // lib.optionalAttrs (system == "x86_64-linux") {
+              microbin-vm = import ./tests/microbin-vm.nix {
+                inherit pkgs;
+                inherit sourceRevision;
+              };
+            }
+            // lib.optionalAttrs (system == "aarch64-linux") {
               miniflux-grafana-vm = import ./tests/miniflux-grafana.nix {
                 inherit pkgs;
-                sourceRevision = self.rev or "dirty";
+                inherit sourceRevision;
               };
             };
           };
