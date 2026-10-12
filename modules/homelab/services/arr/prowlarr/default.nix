@@ -12,7 +12,6 @@ let
   service = "prowlarr";
   cfg = config.homelab.services.${service};
   homelab = config.homelab;
-  port = 9696;
 in
 {
   options.homelab.services.${service} = {
@@ -46,7 +45,7 @@ in
 
     services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
       ${homelab.mkCaddyTls}
-      reverse_proxy http://127.0.0.1:${toString port}
+      reverse_proxy http://127.0.0.1:${toString config.services.${service}.settings.server.port}
     '';
   };
 }
