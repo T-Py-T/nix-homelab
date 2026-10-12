@@ -13,9 +13,26 @@
 let
   cfg = config.homelab.motd;
 
+  # Homelab option keys that are not individual service modules.
+  nonServiceKeys = [
+    "enable"
+    "profiles"
+    "enabledProfiles"
+  ];
+
+  # NixOS systemd unit names that differ from `homelab.services.<name>`.
+  systemdUnitAliases = {
+    homepage = [ "homepage-dashboard" ];
+    homeassistant = [ "podman-homeassistant" ];
+    jellyseerr = [ "seerr" ];
+    node-exporter = [ "prometheus-node-exporter" ];
+    raspberrymatic = [ "podman-ccu" ];
+  };
+
   enabledServices = lib.attrsets.mapAttrsToList (name: _: name) (
     lib.attrsets.filterAttrs (
-      name: value: name != "enable" && lib.isAttrs value && value ? enable && value.enable
+      name: value:
+      !(builtins.elem name nonServiceKeys) && lib.isAttrs value && value ? enable && value.enable
     ) config.homelab.services
   );
 
@@ -25,7 +42,7 @@ let
       let
         svc = config.homelab.services.${name};
       in
-      if (svc ? monitoredServices) then svc.monitoredServices else [ name ]
+      if svc ? monitoredServices then svc.monitoredServices else systemdUnitAliases.${name} or [ name ]
     )
   );
 
