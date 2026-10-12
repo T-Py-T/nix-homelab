@@ -37,12 +37,18 @@
         perSystem =
           { pkgs, system, ... }:
           {
-            checks = lib.optionalAttrs (system == "aarch64-linux") {
-              miniflux-grafana-vm = import ./tests/miniflux-grafana.nix {
-                inherit pkgs;
-                sourceRevision = self.rev or "dirty";
+            checks =
+              lib.optionalAttrs (system == "aarch64-linux") {
+                miniflux-grafana-vm = import ./tests/miniflux-grafana.nix {
+                  inherit pkgs;
+                  sourceRevision = self.rev or "dirty";
+                };
+              }
+              // {
+                homelab-service-metadata = import ./tests/homelab-service-metadata.nix {
+                  inherit pkgs lib;
+                };
               };
-            };
           };
       }
     );
