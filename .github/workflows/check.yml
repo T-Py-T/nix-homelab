@@ -2,13 +2,22 @@ name: check
 
 on:
   pull_request:
+    branches:
+      - main
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -18,15 +27,13 @@ jobs:
   flake-check:
     name: nix flake check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
 
-      # Evaluate every host and check without building architecture-specific
-      # closures. Heavy VM and host builds stay local and explicit; this PR gate
-      # catches invalid configurations while remaining portable and inexpensive.
-      - name: Evaluate flake
-        run: nix flake check --no-build --print-build-logs
+      - name: Run CI checks
+        run: scripts/ci-local.sh
