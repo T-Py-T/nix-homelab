@@ -1,0 +1,29 @@
+# Local checks aligned with treefmt and common Nix linters.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 9c72c5f9f05200fdc06e3f1b16e9aaa89fbe9f75 # v8.24.2
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: deadnix
+        name: deadnix
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && export NIX_CONFIG="${NIX_CONFIG:-experimental-features = nix-command flakes}" && nix run github:nixos/nixpkgs/b4fd65b198c599cbe814fcb9f42d25d021595ec9#deadnix -- --fail .'
+        language: system
+        pass_filenames: false
+
+      - id: treefmt
+        name: treefmt (nix fmt)
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && export NIX_CONFIG="${NIX_CONFIG:-experimental-features = nix-command flakes}" && nix fmt -- --fail-on-change'
+        language: system
+        pass_filenames: false
+
+      - id: statix
+        name: statix check
+        # Manual: the tree has many existing statix warnings; run with
+        # `pre-commit run statix --all-files --hook-stage manual`.
+        stages: [manual]
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && export NIX_CONFIG="${NIX_CONFIG:-experimental-features = nix-command flakes}" && nix run github:nixos/nixpkgs/b4fd65b198c599cbe814fcb9f42d25d021595ec9#statix -- check .'
+        language: system
+        pass_filenames: false
