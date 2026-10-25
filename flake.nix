@@ -32,6 +32,7 @@
         imports = [
           ./machines/nixos
           ./modules/devshell.nix
+          ./modules/flake-checks-regression.nix
         ];
 
         perSystem =

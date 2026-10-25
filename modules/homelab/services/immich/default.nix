@@ -13,6 +13,7 @@ let
   service = "immich";
   cfg = config.homelab.services.${service};
   homelab = config.homelab;
+  addr = "127.0.0.1";
   port = 2283;
 in
 {
@@ -70,7 +71,7 @@ in
 
     services.caddy.virtualHosts."${cfg.url}".extraConfig = ''
       ${homelab.mkCaddyTls}
-      reverse_proxy http://${config.services.immich.host}:${toString config.services.immich.port}
+      reverse_proxy http://${addr}:${toString port}
     '';
   };
 }
