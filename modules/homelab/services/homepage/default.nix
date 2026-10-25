@@ -21,7 +21,9 @@ let
     "Observability"
     "AI"
     "Media"
+    "Arr"
     "Downloads"
+    "Smart Home"
     "Services"
   ];
 

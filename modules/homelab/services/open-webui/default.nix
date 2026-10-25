@@ -7,7 +7,8 @@
 # SERVICE: Open WebUI
 #
 # The chat front-end of the `ai` profile. Talks to the local Ollama backend and
-# is reverse-proxied by Caddy at chat.<baseDomain>. First visit prompts you to
+# is reverse-proxied by Caddy at open-webui.<baseDomain> (Matrix uses chat.*).
+# First visit prompts you to
 # create the admin account (auth is on by default).
 #
 # It does NOT run any models itself - it is a UI over the Ollama API.
@@ -27,7 +28,7 @@ in
 
     url = lib.mkOption {
       type = lib.types.str;
-      default = "chat.${homelab.baseDomain}";
+      default = "open-webui.${homelab.baseDomain}";
     };
 
     homepage.name = lib.mkOption {
