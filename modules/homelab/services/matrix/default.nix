@@ -110,7 +110,7 @@ in
       serviceConfig.Type = "oneshot";
       unitConfig.ConditionPathExists = "!${keyFile}";
     };
-    systemd.services.lk-jwt-service.environment.LIVEKIT_FULL_ACCESS_HOMESERVERS = cfg.url;
+    systemd.services.lk-jwt-service.environment.LIVEKIT_FULL_ACCESS_HOMESERVERS = hl.baseDomain;
 
     services.caddy.virtualHosts =
       let
